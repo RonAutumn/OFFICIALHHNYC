@@ -43,3 +43,4 @@ Thumbs.db
 /backend/node_modules/
 /airtable_data/
 project_hashes.csv
+/backend/credentials.json
