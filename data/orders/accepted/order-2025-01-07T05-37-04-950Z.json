@@ -1,0 +1,35 @@
+{
+  "items": [
+    {
+      "id": "recn9OJAYPnHDhfJ1",
+      "name": "Chocolate Brownie",
+      "description": "Rich chocolate brownie infused with premium cannabis. 100MG Each",
+      "price": 15,
+      "category": [
+        "recyWv46yFdPGAc77"
+      ],
+      "imageUrl": "/images/brownie.jpg",
+      "stock": 100,
+      "quantity": 1
+    }
+  ],
+  "delivery": {
+    "name": "cvbvcvc",
+    "phone": "vcvcvc",
+    "email": "fdfdsdfs@gffg.com",
+    "method": "delivery",
+    "fee": 15,
+    "address": "dfsdsf",
+    "zipCode": "dfssdf",
+    "borough": "Brooklyn",
+    "deliveryDate": "2025-01-15T05:00:00.000Z"
+  },
+  "status": "pending",
+  "total": 30,
+  "timestamp": "2025-01-07T05:37:04.950Z",
+  "validation": {
+    "isValid": true,
+    "errors": []
+  },
+  "acceptedAt": "2025-01-07T05:37:04.961Z"
+}

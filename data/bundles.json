@@ -1,0 +1,14 @@
+[
+  {
+    "id": "bundle_test_1",
+    "name": "Test Bundle Pack",
+    "description": "Special bundle pack with multiple items",
+    "price": 99.99,
+    "imageUrl": "/images/bundle-test.jpg",
+    "categoryId": "deals_category",
+    "isActive": true,
+    "status": "active",
+    "stock": 10,
+    "variations": []
+  }
+] 

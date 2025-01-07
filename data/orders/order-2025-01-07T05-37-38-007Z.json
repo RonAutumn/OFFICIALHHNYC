@@ -1,0 +1,24 @@
+{
+  "items": [],
+  "delivery": {
+    "name": "jjkhkjhkj",
+    "phone": "676567",
+    "email": "4343342@dd.com",
+    "method": "shipping",
+    "fee": 15,
+    "address": "rtreter",
+    "city": "reerre",
+    "state": "WA",
+    "zipCode": "112233",
+    "country": "United States"
+  },
+  "status": "pending",
+  "total": 15,
+  "timestamp": "2025-01-07T05:37:38.007Z",
+  "validation": {
+    "isValid": false,
+    "errors": [
+      "Order must contain items"
+    ]
+  }
+}

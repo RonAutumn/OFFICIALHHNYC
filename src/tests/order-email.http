@@ -1,0 +1,56 @@
+### Test Order Creation and Email
+POST http://localhost:3000/api/orders
+Content-Type: application/json
+
+{
+  "items": [
+    {
+      "id": "test-product-1",
+      "name": "Test Product 1",
+      "price": 2500,
+      "quantity": 2
+    }
+  ],
+  "delivery": {
+    "name": "Test Customer",
+    "phone": "123-456-7890",
+    "email": "test@example.com",
+    "method": "delivery",
+    "fee": 10,
+    "address": "123 Test St",
+    "zipCode": "10001",
+    "borough": "Manhattan",
+    "deliveryDate": "2024-01-20T10:00:00.000Z",
+    "instructions": "Test delivery instructions"
+  },
+  "status": "pending",
+  "total": 5010
+}
+
+### Test Email Notification Directly
+POST http://localhost:3000/api/send-order-email
+Content-Type: application/json
+
+{
+  "orderId": "test-order-123",
+  "customerName": "Test Customer",
+  "customerEmail": "test@example.com",
+  "customerPhone": "123-456-7890",
+  "items": [
+    {
+      "name": "Test Product 1",
+      "quantity": 2,
+      "price": 2500
+    }
+  ],
+  "delivery": {
+    "method": "delivery",
+    "address": "123 Test St",
+    "borough": "Manhattan",
+    "zipCode": "10001",
+    "deliveryDate": "2024-01-20T10:00:00.000Z",
+    "instructions": "Test delivery instructions"
+  },
+  "total": 5010,
+  "fee": 10
+} 
