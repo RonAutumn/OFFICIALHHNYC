@@ -85,4 +85,21 @@ export async function getLocalProductsWithDetails(): Promise<Product[]> {
 export async function getLocalProduct(id: string): Promise<Product | null> {
   const products = await getLocalProducts()
   return products.find(p => p.id === id) || null
+}
+
+// Get local product details
+export async function getLocalProductDetails(id: string): Promise<Product | null> {
+  return getLocalProduct(id)
+}
+
+// Save local product details
+export async function saveLocalProductDetails(product: Partial<Product> & { id: string }): Promise<Product> {
+  return updateLocalProduct(product)
+}
+
+// Delete a local product
+export async function deleteLocalProduct(id: string): Promise<void> {
+  const products = await getLocalProducts()
+  const filteredProducts = products.filter(p => p.id !== id)
+  await saveProductsToFile(filteredProducts)
 } 
