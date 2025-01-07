@@ -4,6 +4,9 @@
 # testing
 /coverage
 /test-results
+/src/tests
+*.http
+*.ps1
 
 # next.js
 /.next/
