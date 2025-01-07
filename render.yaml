@@ -2,8 +2,8 @@ services:
   - type: web
     name: hhnyc-shop
     env: node
-    buildCommand: npm install && npm run build
-    startCommand: npm run dev
+    buildCommand: npm install && NODE_ENV=production npm run build
+    startCommand: NODE_ENV=production npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -21,4 +21,5 @@ services:
         sync: false
       - key: NEXT_PUBLIC_SITE_URL
         sync: false
-    autoDeploy: true 
+    autoDeploy: true
+    healthCheckPath: / 

@@ -4,6 +4,11 @@ const nextConfig = {
     config.resolve.fallback = {
       ...config.resolve.fallback,
       fs: false,
+      net: false,
+      tls: false,
+      dns: false,
+      child_process: false,
+      async_hooks: false,
     };
     
     // Handle path issues in Windows
@@ -18,6 +23,7 @@ const nextConfig = {
   },
   reactStrictMode: true,
   swcMinify: true,
+  output: 'standalone',
 }
 
 module.exports = nextConfig
