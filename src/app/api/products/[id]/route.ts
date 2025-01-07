@@ -7,12 +7,19 @@ import {
   getLocalProduct
 } from '@/lib/local-products'
 
+interface Params {
+  params: {
+    id: string
+  }
+}
+
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Params
 ) {
   try {
-    const product = await getLocalProduct(params.id)
+    const product = await getLocalProductDetails(params.id)
+    
     if (!product) {
       return NextResponse.json(
         { error: 'Product not found' },
@@ -20,12 +27,11 @@ export async function GET(
       )
     }
 
-    const details = await getLocalProductDetails(params.id)
-    return NextResponse.json({ ...product, details })
+    return NextResponse.json(product)
   } catch (error) {
-    console.error('Product API Error:', error)
+    console.error('Error fetching product:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch product', details: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to fetch product' },
       { status: 500 }
     )
   }
@@ -33,28 +39,30 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Params
 ) {
   try {
-    const { isActive } = await request.json()
-    
+    const data = await request.json()
+    const { isActive } = data
+
     if (typeof isActive !== 'boolean') {
       return NextResponse.json(
-        { error: 'Invalid status value' },
+        { error: 'Invalid request body' },
         { status: 400 }
       )
     }
 
-    const product = await updateLocalProduct(params.id, { 
+    const product = await updateLocalProduct({
+      id: params.id,
       isActive,
       status: isActive ? 'active' : 'inactive'
     })
-    const details = await getLocalProductDetails(params.id)
-    return NextResponse.json({ ...product, details })
+
+    return NextResponse.json(product)
   } catch (error) {
-    console.error('Error updating product status:', error)
+    console.error('Error updating product:', error)
     return NextResponse.json(
-      { error: 'Failed to update product status' },
+      { error: 'Failed to update product' },
       { status: 500 }
     )
   }
@@ -100,7 +108,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Params
 ) {
   try {
     await deleteLocalProduct(params.id)
