@@ -2,24 +2,22 @@ services:
   - type: web
     name: hhnyc-shop
     env: node
-    buildCommand: npm install && NODE_ENV=production npm run build
-    startCommand: NODE_ENV=production npm start
+    buildCommand: npm install && npm run build
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
-      - key: NEXT_PUBLIC_API_URL
+      - key: AIRTABLE_API_KEY
         sync: false
-      - key: NEXT_PUBLIC_APP_URL
+      - key: AIRTABLE_BASE_ID
+        sync: false
+      - key: NEXT_PUBLIC_API_URL
         sync: false
       - key: RESEND_API_KEY
         sync: false
       - key: ADMIN_EMAIL
         sync: false
-      - key: AIRTABLE_API_KEY
+      - key: NEXT_PUBLIC_SITE_PASSWORD
         sync: false
-      - key: AIRTABLE_BASE_ID
-        sync: false
-      - key: NEXT_PUBLIC_SITE_URL
-        sync: false
-    autoDeploy: true
-    healthCheckPath: / 
+    healthCheckPath: /api/health
+    autoDeploy: true 

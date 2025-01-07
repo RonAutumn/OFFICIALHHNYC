@@ -1,28 +1,7 @@
 import axios from 'axios';
+import type { Product, Variation } from '@/types/product';
 
-const API_URL = 'http://localhost:3000/api';
-
-export interface ProductVariation {
-  id?: number;
-  flavor?: string;
-  weight?: number;
-  weightUnit?: 'g' | 'mg' | 'none';
-  price: number;
-}
-
-export interface Product {
-  id: number;
-  name: string;
-  category: string;
-  description?: string;
-  image?: string;
-  stock: number;
-  variations: ProductVariation[];
-  displayOptions: {
-    showWeight: boolean;
-    showFlavors: boolean;
-  };
-}
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export const productService = {
   async getProducts(): Promise<{ products: Product[], categories: string[] }> {
@@ -42,7 +21,7 @@ export const productService = {
     return response.data;
   },
 
-  async updateProduct(id: number, product: Partial<Product>): Promise<Product> {
+  async updateProduct(id: string, product: Partial<Product>): Promise<Product> {
     const response = await axios.put(`${API_URL}/products/${id}`, {
       ...product,
       variations: product.variations?.map(v => ({
@@ -54,7 +33,7 @@ export const productService = {
     return response.data;
   },
 
-  async deleteProduct(id: number): Promise<void> {
+  async deleteProduct(id: string): Promise<void> {
     await axios.delete(`${API_URL}/products/${id}`);
   }
 };

@@ -1,12 +1,10 @@
 # dependencies
 /node_modules
+/.pnp
+.pnp.js
 
 # testing
 /coverage
-/test-results
-/src/tests
-*.http
-*.ps1
 
 # next.js
 /.next/
@@ -14,7 +12,6 @@
 
 # production
 /build
-/dist
 
 # misc
 .DS_Store
@@ -26,23 +23,19 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
-.env*.local
 .env
+.env*.local
+.env.development
+.env.test
 .env.production
+
+# vercel
+.vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# IDE
-.vscode/
-.idea/
-
-# OS
-Thumbs.db
-
-# Project specific
-/backend/node_modules/
-/airtable_data/
-project_hashes.csv
-/backend/credentials.json
+# data
+/data/local-products/
+/data/products/

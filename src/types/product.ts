@@ -1,20 +1,28 @@
 export interface Product {
   id: string;
   name: string;
-  description: string;
+  description?: string;
   price: number;
-  category: string;
+  category: string[];
+  categoryNames?: string[];
+  isActive: boolean;
+  imageUrl?: string;
   stock: number;
   status: string;
-  imageUrl?: string;
-  weightUnit?: number | null;
+  weightSize?: string | number;
+  type?: 'flower' | 'edible' | 'cart' | 'other' | 'bundle';
+  variations?: Variation[];
+  needsSync?: boolean;
 }
 
 export interface Variation {
   id: string;
   name: string;
-  weight: number;
-  weightUnit: 'g' | 'mg' | 'none';
-  flavor: string;
-  price: number;
+  price?: number;
+  stock?: number;
+  imageUrl?: string;
+  isDefault?: boolean;
+  weight?: number;
+  weightUnit?: 'g' | 'mg' | 'none';
+  flavor?: string;
 }

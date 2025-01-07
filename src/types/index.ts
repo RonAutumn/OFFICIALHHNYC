@@ -6,15 +6,7 @@ export interface User {
   rewardsPoints: number
 }
 
-export interface Product {
-  id: string
-  name: string
-  description: string
-  price: number
-  category: string
-  image?: string
-  inStock: boolean
-}
+export { type Product } from './product'
 
 export interface Order {
   id: string
