@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { formatCurrency } from '@/lib/utils'
 import DeliveryForm from './DeliveryForm'
-import ShippingForm from './ShippingForm'
+import { ShippingForm } from '@/features/cart/components/ShippingForm'
 import { OrderType } from '@/types/product'
 
 interface CartModalProps {
@@ -119,7 +119,11 @@ export default function CartModal({ isOpen, onClose }: CartModalProps) {
         )}
 
         {step === 'shipping' && (
-          <ShippingForm onSubmit={handleShippingSubmit} onBack={handleBack} />
+          <ShippingForm 
+            onSubmit={handleShippingSubmit} 
+            onBack={handleBack}
+            isSubmitting={false}
+          />
         )}
       </DialogContent>
     </Dialog>
