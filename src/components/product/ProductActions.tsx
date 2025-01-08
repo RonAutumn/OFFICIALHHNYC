@@ -1,6 +1,6 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { Product } from '../ProductCard';
+import { Product } from '@/types/product';
 
 interface ProductActionsProps {
   product: Product;

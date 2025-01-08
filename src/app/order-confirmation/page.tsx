@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { formatPrice } from '@/lib/utils';
 import { useSearchParams } from 'next/navigation';
 import { CheckCircle2, MessageSquare, Mail } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 
 interface OrderData {
   items: Array<{
@@ -21,125 +21,128 @@ interface OrderData {
     [key: string]: any;
   };
   total: number;
-  status: string;
+  orderId: string;
 }
 
-export default function OrderConfirmationPage() {
+function OrderConfirmationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const orderId = searchParams.get('orderId');
   const [orderData, setOrderData] = useState<OrderData | null>(null);
 
   useEffect(() => {
-    const fetchOrderDetails = async () => {
-      if (orderId) {
-        try {
-          const response = await fetch(`/api/orders/${orderId}`);
-          if (response.ok) {
-            const data = await response.json();
-            console.log('Order data:', data);
-            setOrderData(data);
-          }
-        } catch (error) {
-          console.error('Error fetching order details:', error);
-        }
+    const data = searchParams.get('data');
+    if (data) {
+      try {
+        setOrderData(JSON.parse(decodeURIComponent(data)));
+      } catch (error) {
+        console.error('Error parsing order data:', error);
       }
-    };
+    }
+  }, [searchParams]);
 
-    fetchOrderDetails();
-  }, [orderId]);
-
-  const subtotal = orderData?.items.reduce((sum, item) => sum + (item.price * item.quantity), 0) || 0;
+  if (!orderData) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Not Found</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Sorry, we couldn't find your order information.</p>
+          </CardContent>
+          <CardFooter>
+            <Button onClick={() => router.push('/')}>Return Home</Button>
+          </CardFooter>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4">
-      <Card className="max-w-2xl mx-auto bg-background border-border">
-        <CardHeader className="text-center space-y-2">
-          <div className="flex justify-center">
-            <CheckCircle2 className="h-12 w-12 text-green-500" />
-          </div>
-          <CardTitle className="text-2xl text-foreground">Order Received!</CardTitle>
-          {orderId && (
-            <p className="text-muted-foreground">Order #{orderId}</p>
-          )}
-        </CardHeader>
-
-        <CardContent className="space-y-8">
-          {/* Payment Instructions */}
-          <div className="bg-blue-950/50 border border-blue-900 rounded-lg p-6 space-y-4">
-            <h2 className="font-semibold text-lg text-blue-300">Payment Instructions</h2>
-            <div className="space-y-3">
-              <div className="flex items-start gap-3">
-                <MessageSquare className="h-5 w-5 text-blue-400 mt-1" />
-                <p className="text-foreground">A payment link will be sent to your phone via SMS shortly.</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Mail className="h-5 w-5 text-blue-400 mt-1" />
-                <p className="text-foreground">A confirmation email with your order details and payment instructions will be sent to your email address.</p>
-              </div>
+    <div className="container mx-auto px-4 py-8">
+      <Card className="max-w-2xl mx-auto">
+        <CardHeader>
+          <div className="flex items-center gap-4">
+            <CheckCircle2 className="h-8 w-8 text-green-500" />
+            <div>
+              <CardTitle>Order Confirmed!</CardTitle>
+              <p className="text-sm text-gray-500">Order #{orderData.orderId}</p>
             </div>
           </div>
-
-          {/* Order Summary */}
-          {orderData && (
-            <div className="border border-border rounded-lg p-6 space-y-4">
-              <h3 className="font-semibold text-lg text-foreground">Order Summary</h3>
-              <div className="space-y-3">
-                {orderData.items.map((item) => (
-                  <div key={item.id} className="flex justify-between items-center py-2">
-                    <div className="flex-1">
-                      <p className="font-medium text-foreground">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Quantity: {item.quantity} × {formatPrice(item.price)}
-                      </p>
-                    </div>
-                    <p className="font-medium text-foreground">{formatPrice(item.price * item.quantity)}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-semibold mb-2">Order Summary</h3>
+              <div className="space-y-2">
+                {orderData.items.map((item, index) => (
+                  <div key={index} className="flex justify-between text-sm">
+                    <span>{item.name} x{item.quantity}</span>
+                    <span>{formatPrice(item.price * item.quantity)}</span>
                   </div>
                 ))}
-                <div className="border-t border-border pt-4 mt-4 space-y-2">
-                  <div className="flex justify-between items-center text-muted-foreground">
+                <div className="border-t pt-2 mt-2">
+                  <div className="flex justify-between text-sm">
                     <span>Subtotal</span>
-                    <span>{formatPrice(subtotal)}</span>
+                    <span>{formatPrice(orderData.total - orderData.delivery.fee)}</span>
                   </div>
-                  <div className="flex justify-between items-center text-muted-foreground">
+                  <div className="flex justify-between text-sm">
                     <span>{orderData.delivery.method === 'delivery' ? 'Delivery Fee' : 'Shipping Fee'}</span>
                     <span>{formatPrice(orderData.delivery.fee)}</span>
                   </div>
-                  <div className="flex justify-between items-center font-semibold text-lg pt-2">
-                    <span className="text-foreground">Total</span>
-                    <span className="text-foreground">{formatPrice(orderData.total)}</span>
+                  <div className="flex justify-between font-semibold mt-2">
+                    <span>Total</span>
+                    <span>{formatPrice(orderData.total)}</span>
                   </div>
                 </div>
               </div>
             </div>
-          )}
 
-          {/* Next Steps */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-lg text-foreground">What happens next?</h3>
-            <ol className="list-decimal list-inside space-y-2 text-muted-foreground">
-              <li>Complete your payment using the link sent via SMS</li>
-              <li>Receive payment confirmation</li>
-              <li>We'll prepare your order</li>
-              <li>
-                {orderData?.delivery.method === 'delivery' 
-                  ? 'Deliver to your provided address on the selected date'
-                  : 'Ship to your provided address'
-                }
-              </li>
-            </ol>
+            <div>
+              <h3 className="font-semibold mb-2">{orderData.delivery.method === 'delivery' ? 'Delivery' : 'Shipping'} Details</h3>
+              <div className="text-sm space-y-1">
+                <p>{orderData.delivery.address}</p>
+                {orderData.delivery.borough && <p>Borough: {orderData.delivery.borough}</p>}
+                {orderData.delivery.instructions && (
+                  <div className="flex items-start gap-2 mt-2">
+                    <MessageSquare className="h-4 w-4 mt-0.5" />
+                    <p>{orderData.delivery.instructions}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Mail className="h-4 w-4" />
+              <p>A confirmation email has been sent with your order details.</p>
+            </div>
           </div>
         </CardContent>
-
-        <CardFooter className="flex flex-col gap-4">
+        <CardFooter>
           <Button onClick={() => router.push('/')} className="w-full">
-            Return to Home
+            Continue Shopping
           </Button>
-          <p className="text-sm text-muted-foreground text-center">
-            Questions about your order? Contact us at support@hhnyc.com
-          </p>
         </CardFooter>
       </Card>
     </div>
   );
-} 
+}
+
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Loading Order...</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Please wait while we load your order information.</p>
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <OrderConfirmationContent />
+    </Suspense>
+  );
+}

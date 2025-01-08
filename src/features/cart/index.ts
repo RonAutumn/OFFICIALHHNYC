@@ -1,9 +1,11 @@
 export * from './types';
-export { default as useCart } from './store/cart';
+export { useCartStore } from './store/cart';
 export { CartModal } from './components/CartModal';
 export { DeliveryForm } from './components/DeliveryForm';
 export { ShippingForm } from './components/ShippingForm';
-export { OrderConfirmation } from './components/OrderConfirmation';
+export { default as OrderConfirmation } from './components/OrderConfirmation';
+
+import { CartItem, OrderType } from './types';
 
 interface CustomerInfo {
   name: string;

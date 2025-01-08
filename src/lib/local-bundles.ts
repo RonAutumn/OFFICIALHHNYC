@@ -41,7 +41,7 @@ export async function createLocalBundle(bundle: Partial<Product>): Promise<Produ
     ...bundle as Product,
     id: bundle.id || `bundle_${Date.now()}`,
     status: bundle.isActive ? 'active' : 'inactive',
-    categoryId: 'deals_category', // Always assign to deals category
+    category: ['deals_category'], // Always assign to deals category
     needsSync: true
   }
 
@@ -63,7 +63,7 @@ export async function updateLocalBundle(bundle: Partial<Product> & { id: string 
     ...bundles[index],
     ...bundle,
     status: bundle.isActive ? 'active' : 'inactive',
-    categoryId: 'deals_category', // Ensure it stays in deals category
+    category: ['deals_category'], // Ensure it stays in deals category
     needsSync: true
   }
 

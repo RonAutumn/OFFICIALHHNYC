@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Product, Variation } from '@/types/product';
+import type { Product, ProductVariation } from '@/types/product';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
@@ -12,11 +12,7 @@ export const productService = {
   async addProduct(product: Omit<Product, 'id'>): Promise<Product> {
     const response = await axios.post(`${API_URL}/products`, {
       ...product,
-      variations: product.variations?.map(v => ({
-        ...v,
-        weightUnit: v.weightUnit || 'g',
-        weight: v.weight || 0
-      })) || []
+      variations: product.variations || []
     });
     return response.data;
   },
@@ -24,11 +20,7 @@ export const productService = {
   async updateProduct(id: string, product: Partial<Product>): Promise<Product> {
     const response = await axios.put(`${API_URL}/products/${id}`, {
       ...product,
-      variations: product.variations?.map(v => ({
-        ...v,
-        weightUnit: v.weightUnit || 'g',
-        weight: v.weight || 0
-      })) || []
+      variations: product.variations || []
     });
     return response.data;
   },

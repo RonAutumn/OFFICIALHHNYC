@@ -1,8 +1,8 @@
-import type { Product, Variation } from './product';
+import type { Product, ProductVariation } from './product';
 
 export interface CartItem extends Omit<Product, 'variations'> {
   quantity: number;
-  selectedVariation?: Variation;
+  selectedVariation?: ProductVariation;
 }
 
 export interface CartState {

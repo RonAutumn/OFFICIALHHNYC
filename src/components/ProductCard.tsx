@@ -59,9 +59,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         <p className="text-sm text-muted-foreground mt-1">{product.description}</p>
         <div className="mt-2">
           <p className="font-medium">{formatCurrency(product.price)}</p>
-          {product.weightUnit && (
+          {product.weightSize && (
             <p className="text-sm text-muted-foreground">
-              Weight: {product.weightUnit}g
+              Weight: {product.weightSize}g
             </p>
           )}
         </div>

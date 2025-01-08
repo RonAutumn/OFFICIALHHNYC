@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ShoppingCart, Menu, X, Search } from 'lucide-react';
@@ -60,7 +60,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                   {categories.map((category) => (
                     <Link
                       key={category.path}
-                      to={category.path}
+                      href={category.path}
                       className="block py-2 px-4 hover:bg-accent rounded-md transition-colors"
                       onClick={() => {
                         const sheet = document.querySelector('[data-state="open"]');
@@ -76,14 +76,14 @@ export const Navigation: React.FC<NavigationProps> = ({
               </SheetContent>
             </Sheet>
 
-            <Link to="/" className="text-xl font-bold text-foreground hover:text-primary whitespace-nowrap">
+            <Link href="/" className="text-xl font-bold text-foreground hover:text-primary whitespace-nowrap">
               Heaven High NYC
             </Link>
 
             {/* Desktop Categories */}
             <div className="hidden md:flex gap-4 overflow-x-auto">
               {categories.map((category) => (
-                <Link key={category.path} to={category.path}>
+                <Link key={category.path} href={category.path}>
                   <Button variant="ghost">{category.name}</Button>
                 </Link>
               ))}

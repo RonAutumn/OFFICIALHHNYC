@@ -31,11 +31,11 @@ export const FlavorSelector: React.FC<FlavorSelectorProps> = ({
         <SelectContent className="bg-gray-800 border-gray-700">
           {variations.map((variation) => (
             <SelectItem
-              key={variation.flavor}
-              value={variation.flavor}
+              key={variation.name}
+              value={variation.name}
               className="text-white hover:bg-gray-700 focus:bg-gray-700 cursor-pointer"
             >
-              {variation.flavor}
+              {variation.name}
             </SelectItem>
           ))}
         </SelectContent>

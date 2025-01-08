@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { CartItem, Product, Variation, OrderType } from '@/types/product'
+import { CartItem, Product, ProductVariation, OrderType } from '@/types/product'
 
 interface CartStore {
   items: CartItem[]
@@ -7,7 +7,7 @@ interface CartStore {
   deliveryFee: number
   total: number
   orderType: OrderType
-  addItem: (product: Product, quantity?: number, variation?: Variation) => void
+  addItem: (product: Product, quantity?: number, variation?: ProductVariation) => void
   removeItem: (productId: string, variationName?: string) => void
   updateQuantity: (productId: string, quantity: number, variationName?: string) => void
   clearCart: () => void
@@ -126,4 +126,4 @@ function calculateSubtotal(items: CartItem[]): number {
   }, 0)
 }
 
-export default useCart 
+export default useCart

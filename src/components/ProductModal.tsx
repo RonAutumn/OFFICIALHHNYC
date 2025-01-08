@@ -30,9 +30,9 @@ export const ProductModal: React.FC<ProductModalProps> = ({
           </DialogTitle>
         </DialogHeader>
         <div className="space-y-4">
-          {product.image && (
+          {product.imageUrl && (
             <img
-              src={product.image}
+              src={product.imageUrl}
               alt={product.name}
               className="w-full h-48 object-cover rounded-md"
             />
@@ -44,7 +44,7 @@ export const ProductModal: React.FC<ProductModalProps> = ({
               <ul className="space-y-1">
                 {product.variations.map((variation, index) => (
                   <li key={index} className="text-sm text-muted-foreground antialiased">
-                    {variation.flavor} - ${variation.price}
+                    {variation.name} - ${variation.price?.toFixed(2) ?? '0.00'}
                   </li>
                 ))}
               </ul>

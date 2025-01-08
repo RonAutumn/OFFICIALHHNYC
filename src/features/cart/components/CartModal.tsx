@@ -16,7 +16,7 @@ import { formatPrice } from '@/lib/utils';
 import { useCartStore } from '../store/cart';
 import { DeliveryForm } from './DeliveryForm';
 import { ShippingForm } from './ShippingForm';
-import { OrderConfirmation } from './OrderConfirmation';
+import OrderConfirmation from './OrderConfirmation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CartModalProps {

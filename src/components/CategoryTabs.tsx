@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { cn } from '@/lib/utils';
 
 interface CategoryTabsProps {
@@ -7,18 +7,18 @@ interface CategoryTabsProps {
 }
 
 export const CategoryTabs: React.FC<CategoryTabsProps> = ({ categories }) => {
-  const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const activeCategory = searchParams.get('category') || 'All Products';
 
   const handleCategoryClick = (category: string) => {
-    const newParams = new URLSearchParams(searchParams);
+    const params = new URLSearchParams(searchParams.toString());
     if (category === 'All Products') {
-      newParams.delete('category');
+      params.delete('category');
     } else {
-      newParams.set('category', category);
+      params.set('category', category);
     }
-    navigate(`/?${newParams.toString()}`);
+    router.push(`/?${params.toString()}`);
   };
 
   return (

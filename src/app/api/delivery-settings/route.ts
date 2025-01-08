@@ -1,15 +1,36 @@
 import { NextResponse } from 'next/server';
-import { getDeliverySettings } from '@/lib/airtable';
+import { base } from '@/lib/airtable';
 
 export async function GET() {
   try {
-    const settings = await getDeliverySettings();
-    return NextResponse.json(settings);
+    if (!base) {
+      console.warn('Airtable not configured. Returning default delivery settings.');
+      return NextResponse.json({
+        settings: [
+          {
+            borough: 'Manhattan',
+            deliveryFee: 10,
+            freeDeliveryMinimum: 100
+          },
+          {
+            borough: 'Brooklyn',
+            deliveryFee: 15,
+            freeDeliveryMinimum: 150
+          }
+        ]
+      });
+    }
+
+    const records = await base('Delivery Settings').select().all();
+    const settings = records.map(record => ({
+      borough: record.get('Borough'),
+      deliveryFee: record.get('Delivery Fee'),
+      freeDeliveryMinimum: record.get('Free Delivery Minimum')
+    }));
+
+    return NextResponse.json({ settings });
   } catch (error) {
-    console.error('Delivery Settings API Error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch delivery settings' },
-      { status: 500 }
-    );
+    console.error('Error fetching delivery settings:', error);
+    return NextResponse.json({ error: 'Failed to fetch delivery settings' }, { status: 500 });
   }
-} 
+}

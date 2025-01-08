@@ -2,14 +2,15 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import Airtable from 'airtable'
 
-if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
-  throw new Error('Missing Airtable environment variables')
-}
-
-// Initialize Airtable
-export const base = new Airtable({
+// Initialize Airtable if environment variables are present
+const airtableConfig = {
   apiKey: process.env.AIRTABLE_API_KEY,
-}).base(process.env.AIRTABLE_BASE_ID)
+  baseId: process.env.AIRTABLE_BASE_ID
+};
+
+export const base = airtableConfig.apiKey && airtableConfig.baseId
+  ? new Airtable({ apiKey: airtableConfig.apiKey }).base(airtableConfig.baseId)
+  : null;
 
 // File paths
 const LOCAL_PRODUCTS_DIR = path.join(process.cwd(), 'data', 'local-products')
@@ -201,6 +202,12 @@ export interface DeliverySetting {
 export async function getCategories(): Promise<Category[]> {
   try {
     console.log('Fetching categories from Airtable...');
+    
+    if (!base) {
+      console.warn('Airtable not configured. Returning empty categories array.');
+      return [];
+    }
+
     const records = await base('Category').select({
       sort: [{ field: 'Display Order', direction: 'asc' }],
     }).all();
@@ -224,6 +231,12 @@ export async function getCategories(): Promise<Category[]> {
 export async function getProducts(): Promise<Product[]> {
   try {
     console.log('Fetching products from Airtable...');
+    
+    if (!base) {
+      console.warn('Airtable not configured. Returning empty products array.');
+      return [];
+    }
+
     const records = await base('Products').select({
       sort: [{ field: 'Name', direction: 'asc' }],
       view: 'Grid view',
@@ -277,6 +290,12 @@ export async function getProducts(): Promise<Product[]> {
 export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
   try {
     console.log(`Fetching products for category ${categoryId}...`);
+    
+    if (!base) {
+      console.warn('Airtable not configured. Returning empty products array.');
+      return [];
+    }
+
     const records = await base('Products').select({
       filterByFormula: `FIND("${categoryId}", ARRAYJOIN(Category, ",")) > 0`,
       sort: [{ field: 'Name', direction: 'asc' }],
@@ -331,6 +350,23 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
 export async function getDeliverySettings(): Promise<DeliverySetting[]> {
   try {
     console.log('Fetching delivery settings from Airtable...');
+    
+    if (!base) {
+      console.warn('Airtable not configured. Returning default delivery settings.');
+      return [
+        {
+          borough: 'Manhattan',
+          deliveryFee: 10,
+          freeDeliveryMinimum: 100,
+        },
+        {
+          borough: 'Brooklyn',
+          deliveryFee: 15,
+          freeDeliveryMinimum: 150,
+        },
+      ];
+    }
+
     const records = await base('Settings').select({
       view: 'Grid view'
     }).all();
@@ -350,6 +386,11 @@ export async function getDeliverySettings(): Promise<DeliverySetting[]> {
 export async function updateProductStatus(productId: string, isActive: boolean): Promise<Product> {
   try {
     console.log(`Updating product ${productId} status to ${isActive}...`);
+    
+    if (!base) {
+      throw new Error('Airtable not configured');
+    }
+
     const record = await base('Products').update(productId, {
       'Status': isActive ? 'active' : 'inactive',
     });
@@ -376,6 +417,11 @@ export async function updateProductStatus(productId: string, isActive: boolean):
 export async function updateProduct(productId: string, data: Partial<Product>): Promise<Product> {
   try {
     console.log(`Updating product ${productId}...`);
+    
+    if (!base) {
+      throw new Error('Airtable not configured');
+    }
+
     const record = await base('Products').update(productId, {
       'Name': data.name,
       'Description': data.description,
@@ -409,6 +455,11 @@ export async function updateProduct(productId: string, data: Partial<Product>): 
 export async function createProduct(data: Partial<Product>): Promise<Product> {
   try {
     console.log('Creating new product...');
+    
+    if (!base) {
+      throw new Error('Airtable not configured');
+    }
+
     const record = await base('Products').create({
       'Name': data.name,
       'Description': data.description,
@@ -642,6 +693,11 @@ export async function getAllCategories(): Promise<Category[]> {
 export async function updateCategory(categoryId: string, data: Partial<Category>): Promise<Category> {
   try {
     console.log(`Updating category ${categoryId}...`)
+    
+    if (!base) {
+      throw new Error('Airtable not configured');
+    }
+
     const record = await base('Category').update(categoryId, {
       'Name': data.name,
       'Description': data.description,
@@ -670,6 +726,11 @@ export async function updateCategory(categoryId: string, data: Partial<Category>
 export async function createCategory(data: Partial<Category>): Promise<Category> {
   try {
     console.log('Creating new category...')
+    
+    if (!base) {
+      throw new Error('Airtable not configured');
+    }
+
     const record = await base('Category').create({
       'Name': data.name,
       'Description': data.description,
@@ -692,4 +753,4 @@ export async function createCategory(data: Partial<Category>): Promise<Category>
     console.error('Error creating category:', error)
     throw error
   }
-} 
+}

@@ -73,6 +73,7 @@ interface ProductFormData extends Product {
   imageUrl: string
   weightSize: string | number
   isActive: boolean
+  originalProductId?: string
 }
 
 const productSchema = z.object({
@@ -110,17 +111,24 @@ const productSchema = z.object({
   specialEndDate: z.string().optional(),
   variations: z.array(z.object({
     name: z.string(),
-    price: z.number().optional(),
-    stock: z.number().optional(),
+    price: z.number().min(0).optional(),
+    stock: z.number().int().min(0).optional(),
     imageUrl: z.string().optional(),
     isDefault: z.boolean().optional(),
-  })).default([]),
+  })).optional().default([]),
   bundleProducts: z.array(z.object({
-    productId: z.string(),
+    id: z.string(),
     quantity: z.number().int().min(1),
-    name: z.string(),
-    price: z.number(),
-  })).optional(),
+    product: z.object({
+      id: z.string(),
+      name: z.string(),
+      price: z.number(),
+      category: z.array(z.string()),
+      isActive: z.boolean(),
+      stock: z.number(),
+      status: z.string()
+    })
+  })).optional().default([]),
   isBundleDeal: z.boolean().optional(),
   bundleSavings: z.number().min(0).optional(),
 })
@@ -145,22 +153,38 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
   const [bundleProducts, setBundleProducts] = useState<BundleProduct[]>([])
   
-  const form = useForm<ProductFormData>({
-    defaultValues: {
-      name: '',
-      description: '',
-      price: 0,
-      category: [],
-      stock: 0,
-      isActive: true,
-      status: 'active',
-      imageUrl: '',
-      variations: [],
-      type: showBundles ? 'bundle' : 'other',
-      bundleProducts: [],
-      bundleSavings: 0,
-      isSpecialDeal: false
-    }
+  const defaultValues: ProductFormSchema = {
+    name: '',
+    description: '',
+    price: 0,
+    stock: 0,
+    category: [],
+    imageUrl: '',
+    weightSize: '',
+    isActive: true,
+    type: 'other',
+    details: {
+      ingredients: [],
+      allergens: [],
+      thc: 0,
+      cbd: 0,
+      effects: [],
+      flavors: [],
+    },
+    isSpecialDeal: false,
+    originalProductId: '',
+    specialPrice: 0,
+    specialStartDate: '',
+    specialEndDate: '',
+    variations: [],
+    bundleProducts: [],
+    isBundleDeal: false,
+    bundleSavings: 0,
+  }
+
+  const form = useForm<ProductFormSchema>({
+    resolver: zodResolver(productSchema),
+    defaultValues
   })
 
   useEffect(() => {
@@ -219,7 +243,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
 
   const handleNew = () => {
     setSelectedProduct(null)
-    form.reset()
+    form.reset(defaultValues)
     setIsNewDialogOpen(true)
   }
 
@@ -343,7 +367,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
   })
 
   const handleCreateSpecialDeal = async (product: Product) => {
-    setSelectedProduct(null)
+    form.reset(defaultValues) // Reset form first
     form.setValue('name', `${product.name} (Special)`)
     form.setValue('description', product.description || '')
     form.setValue('price', product.price)
@@ -352,6 +376,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
     form.setValue('imageUrl', product.imageUrl || '')
     form.setValue('weightSize', product.weightSize || '')
     form.setValue('isActive', true)
+    form.setValue('type', product.type || 'other')
     form.setValue('isSpecialDeal', true)
     form.setValue('originalProductId', product.id)
     form.setValue('specialPrice', product.price * 0.8) // 20% discount by default
@@ -362,16 +387,24 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
   }
 
   const handleBundleProductAdd = (product: Product) => {
-    if (!bundleProducts) return
+    if (!bundleProducts) return;
 
     const newBundleProduct: BundleProduct = {
       id: product.id,
       quantity: 1,
-      product
-    }
+      product: {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        category: product.category,
+        isActive: product.isActive,
+        stock: product.stock,
+        status: product.status
+      }
+    };
 
-    setBundleProducts([...bundleProducts, newBundleProduct])
-    form.setValue('bundleProducts', [...bundleProducts, newBundleProduct])
+    setBundleProducts([...bundleProducts, newBundleProduct]);
+    form.setValue('bundleProducts', [...bundleProducts, newBundleProduct]);
   }
 
   const handleBundleProductRemove = (index: number) => {
@@ -707,41 +740,40 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                               <div className="grid grid-cols-2 gap-4 flex-1">
                                 <FormField
                                   control={form.control}
-                                  name={`bundleProducts.${index}.productId`}
+                                  name={`bundleProducts.${index}.product.id`}
                                   render={({ field }) => (
                                     <FormItem>
                                       <FormLabel>Product</FormLabel>
-                                      <Select
-                                        value={field.value}
-                                        onValueChange={(value) => {
-                                          const selectedProduct = products.find(p => p.id === value)
-                                          if (selectedProduct) {
-                                            form.setValue(`bundleProducts.${index}.name`, selectedProduct.name)
-                                            form.setValue(`bundleProducts.${index}.price`, selectedProduct.price)
-                                            // Update total price
-                                            const bundleProducts = form.getValues('bundleProducts')
-                                            const totalPrice = bundleProducts.reduce((sum, bp) => 
-                                              sum + (bp.price * (bp.quantity || 1)), 0
-                                            )
-                                            const savings = form.getValues('bundleSavings') || 0
-                                            form.setValue('price', totalPrice - savings)
-                                          }
-                                          field.onChange(value)
-                                        }}
-                                      >
-                                        <SelectTrigger>
-                                          <SelectValue placeholder="Select a product" />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                          {products
-                                            .filter(p => p.type !== 'bundle' && p.isActive)
-                                            .map((product) => (
+                                      <FormControl>
+                                        <Select
+                                          value={field.value}
+                                          onValueChange={(value) => {
+                                            const selectedProduct = products.find(p => p.id === value);
+                                            if (selectedProduct) {
+                                              form.setValue(`bundleProducts.${index}.product`, {
+                                                id: selectedProduct.id,
+                                                name: selectedProduct.name,
+                                                price: selectedProduct.price,
+                                                category: selectedProduct.category,
+                                                isActive: selectedProduct.isActive,
+                                                stock: selectedProduct.stock,
+                                                status: selectedProduct.status
+                                              });
+                                            }
+                                          }}
+                                        >
+                                          <SelectTrigger>
+                                            <SelectValue placeholder="Select a product" />
+                                          </SelectTrigger>
+                                          <SelectContent>
+                                            {products.map((product) => (
                                               <SelectItem key={product.id} value={product.id}>
-                                                {product.name} - ${product.price.toFixed(2)}
+                                                {product.name}
                                               </SelectItem>
                                             ))}
-                                        </SelectContent>
-                                      </Select>
+                                          </SelectContent>
+                                        </Select>
+                                      </FormControl>
                                       <FormMessage />
                                     </FormItem>
                                   )}
@@ -759,16 +791,18 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                                           {...field}
                                           value={field.value || 1}
                                           onChange={e => {
-                                            const value = parseInt(e.target.value) || 1
-                                            field.onChange(value)
+                                            const value = parseInt(e.target.value) || 1;
+                                            field.onChange(value);
                                             // Update total price
-                                            const bundleProducts = form.getValues('bundleProducts')
-                                            bundleProducts[index].quantity = value
-                                            const totalPrice = bundleProducts.reduce((sum, bp) => 
-                                              sum + (bp.price * (bp.quantity || 1)), 0
-                                            )
-                                            const savings = form.getValues('bundleSavings') || 0
-                                            form.setValue('price', totalPrice - savings)
+                                            const bundleProducts = form.getValues('bundleProducts');
+                                            if (bundleProducts[index]) {
+                                              bundleProducts[index].quantity = value;
+                                              const totalPrice = bundleProducts.reduce((sum, bp) => 
+                                                sum + (bp.product.price * bp.quantity), 0
+                                              );
+                                              const savings = form.getValues('bundleSavings') || 0;
+                                              form.setValue('price', totalPrice - savings);
+                                            }
                                           }}
                                         />
                                       </FormControl>
@@ -787,7 +821,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                                   // Update total price
                                   const remainingProducts = bundleProducts.filter((_, i) => i !== index)
                                   const totalPrice = remainingProducts.reduce((sum, bp) => 
-                                    sum + (bp.price * (bp.quantity || 1)), 0
+                                    sum + (bp.product.price * (bp.quantity || 1)), 0
                                   )
                                   const savings = form.getValues('bundleSavings') || 0
                                   form.setValue('price', totalPrice - savings)
@@ -796,10 +830,10 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                                 <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
-                            {bundleProduct.name && (
+                            {bundleProduct.product.name && (
                               <div className="text-sm text-muted-foreground">
-                                Selected: {bundleProduct.name} - ${bundleProduct.price.toFixed(2)} x {bundleProduct.quantity}
-                                = ${(bundleProduct.price * bundleProduct.quantity).toFixed(2)}
+                                Selected: {bundleProduct.product.name} - ${bundleProduct.product.price.toFixed(2)} x {bundleProduct.quantity}
+                                = ${(bundleProduct.product.price * bundleProduct.quantity).toFixed(2)}
                               </div>
                             )}
                           </div>
@@ -814,10 +848,17 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                               form.setValue('bundleProducts', [
                                 ...bundleProducts,
                                 { 
-                                  productId: '',
+                                  id: '',
                                   quantity: 1,
-                                  name: '',
-                                  price: 0
+                                  product: {
+                                    id: '',
+                                    name: '',
+                                    price: 0,
+                                    category: [],
+                                    isActive: true,
+                                    stock: 0,
+                                    status: 'active'
+                                  }
                                 }
                               ])
                             }}
@@ -829,7 +870,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                           <div className="text-sm text-muted-foreground">
                             Total before savings: $
                             {(form.watch('bundleProducts')?.reduce((sum, bp) => 
-                              sum + (bp.price * (bp.quantity || 1)), 0
+                              sum + (bp.product.price * (bp.quantity || 1)), 0
                             ) || 0).toFixed(2)}
                           </div>
                         </div>
@@ -853,7 +894,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                                     // Update total price
                                     const bundleProducts = form.getValues('bundleProducts') || []
                                     const totalPrice = bundleProducts.reduce((sum, bp) => 
-                                      sum + (bp.price * (bp.quantity || 1)), 0
+                                      sum + (bp.product.price * (bp.quantity || 1)), 0
                                     )
                                     form.setValue('price', totalPrice - value)
                                   }}
@@ -1435,13 +1476,13 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                   {selectedProduct.bundleProducts?.map((bp, index) => (
                     <div key={index} className="flex items-center justify-between border rounded-lg p-2">
                       <div>
-                        <div className="font-medium">{bp.name}</div>
+                        <div className="font-medium">{bp.product.name}</div>
                         <div className="text-sm text-muted-foreground">
                           Quantity: {bp.quantity}
                         </div>
                       </div>
                       <div className="text-sm">
-                        ${bp.price.toFixed(2)}
+                        ${bp.product.price.toFixed(2)}
                       </div>
                     </div>
                   ))}

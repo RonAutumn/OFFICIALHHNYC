@@ -29,7 +29,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   const handleAddToCart = () => {
     const variation = product.variations?.find(v => v.name === selectedVariation);
-    addItem(product, variation);
+    addItem(product, selectedVariation);
     toast({
       title: "Added to cart",
       description: `${product.name}${selectedVariation ? ` - ${selectedVariation}` : ''} has been added to your cart.`,
@@ -96,7 +96,7 @@ export function ProductCard({ product }: ProductCardProps) {
                   value={variation.name || `variation-${variation.id}`}
                   className="text-xs sm:text-sm"
                 >
-                  {variation.name} - ${variation.price.toFixed(2)}
+                  {variation.name} - ${variation.price?.toFixed(2) ?? '0.00'}
                 </SelectItem>
               ))}
             </SelectContent>
