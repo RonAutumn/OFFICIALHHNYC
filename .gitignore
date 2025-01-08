@@ -39,3 +39,23 @@ next-env.d.ts
 # data
 /data/local-products/
 /data/products/
+/data/settings/
+/data/orders/
+
+# credentials
+*.key
+*.pem
+*.crt
+*.p12
+*.json.key
+*-credentials.json
+*service-account*.json
+google-credentials.json
+firebase-credentials.json
+gcp-credentials.json
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
