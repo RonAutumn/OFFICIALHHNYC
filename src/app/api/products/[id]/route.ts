@@ -79,9 +79,15 @@ export async function PUT(
     // Extract base product data and extended details
     const { details, ...productData } = data
 
+    // Ensure status is set based on isActive if present
+    const status = productData.isActive !== undefined 
+      ? (productData.isActive ? 'active' : 'inactive')
+      : productData.status
+
     const product = await updateLocalProduct({
+      ...productData,
       id: params.id,
-      ...productData
+      status
     })
     
     // Update extended details if provided

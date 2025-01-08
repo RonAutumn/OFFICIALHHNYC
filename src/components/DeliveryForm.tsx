@@ -1,15 +1,16 @@
 import { useState } from 'react'
-import useCart from '@/hooks/useCart'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { formatCurrency } from '@/lib/utils'
+import useCart from '@/hooks/useCart'
 
-interface ShippingFormProps {
+interface DeliveryFormProps {
   onSubmit: (data: any) => void
+  onBack: () => void
 }
 
-export default function ShippingForm({ onSubmit }: ShippingFormProps) {
+export default function DeliveryForm({ onSubmit, onBack }: DeliveryFormProps) {
   const { items } = useCart()
   const [formData, setFormData] = useState({
     name: '',
@@ -18,7 +19,8 @@ export default function ShippingForm({ onSubmit }: ShippingFormProps) {
     address: '',
     city: '',
     state: '',
-    zip: ''
+    zip: '',
+    deliveryInstructions: ''
   })
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -30,7 +32,7 @@ export default function ShippingForm({ onSubmit }: ShippingFormProps) {
     })
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({
       ...prev,
@@ -112,7 +114,22 @@ export default function ShippingForm({ onSubmit }: ShippingFormProps) {
           required
         />
       </div>
-      <Button type="submit">Continue to Payment</Button>
+      <div>
+        <Label htmlFor="deliveryInstructions">Delivery Instructions</Label>
+        <Input
+          id="deliveryInstructions"
+          name="deliveryInstructions"
+          value={formData.deliveryInstructions}
+          onChange={handleChange}
+          placeholder="Optional: Add any special delivery instructions"
+        />
+      </div>
+      <div className="flex justify-between">
+        <Button type="button" variant="outline" onClick={onBack}>
+          Back
+        </Button>
+        <Button type="submit">Continue to Payment</Button>
+      </div>
     </form>
   )
-}
+} 

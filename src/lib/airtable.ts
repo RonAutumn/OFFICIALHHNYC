@@ -111,6 +111,20 @@ export interface Product {
   stock: number;
   status: string;
   weightSize?: string | number;
+  type?: 'flower' | 'edible' | 'cart' | 'other' | 'bundle';
+  variations?: ProductVariation[];
+  needsSync?: boolean;
+  details?: ProductDetails;
+  bundleProducts?: Array<{
+    id: string;
+    quantity: number;
+    product: Product;
+  }>;
+  bundleSavings?: number;
+  isSpecialDeal?: boolean;
+  specialPrice?: number;
+  specialStartDate?: string;
+  specialEndDate?: string;
 }
 
 // Extended Product Details Interface

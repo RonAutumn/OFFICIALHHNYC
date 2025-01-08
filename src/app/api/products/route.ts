@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getLocalProducts, createLocalProduct, updateLocalProduct } from '@/lib/local-products'
-import { Product } from '@/lib/airtable'
+import { Product } from '@/types/product'
 
 export async function GET(request: Request) {
   try {
@@ -24,7 +24,7 @@ export async function GET(request: Request) {
       }
       
       if (categoryId) {
-        return product.categoryId === categoryId && product.isActive
+        return product.category.includes(categoryId) && product.isActive
       }
       
       return product.isActive

@@ -39,7 +39,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "sonner"
-import type { Product, Category } from "@/lib/airtable"
+import type { Product, Category, BundleProduct, ProductDetails, ProductVariation } from "@/types/product"
 import {
   Accordion,
   AccordionContent,
@@ -64,7 +64,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 type SortField = 'name' | 'price' | 'stock'
 type SortDirection = 'asc' | 'desc'
 
-interface ProductFormData {
+interface ProductFormData extends Product {
   name: string
   description: string
   price: number
@@ -73,26 +73,6 @@ interface ProductFormData {
   imageUrl: string
   weightSize: string | number
   isActive: boolean
-}
-
-interface ProductVariation {
-  id: string
-  name: string
-  price?: number
-  stock?: number
-  imageUrl?: string
-  isDefault?: boolean
-}
-
-interface ProductDetails {
-  description: string
-  ingredients?: string[]
-  allergens?: string[]
-  thc?: number
-  cbd?: number
-  effects?: string[]
-  flavors?: string[]
-  strainType?: 'indica' | 'sativa' | 'hybrid'
 }
 
 const productSchema = z.object({
@@ -163,15 +143,24 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const [isViewDialogOpen, setIsViewDialogOpen] = useState(false)
   const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
-  const [formData, setFormData] = useState<ProductFormData>({
-    name: '',
-    description: '',
-    price: 0,
-    stock: 0,
-    category: [],
-    imageUrl: '',
-    weightSize: '',
-    isActive: true
+  const [bundleProducts, setBundleProducts] = useState<BundleProduct[]>([])
+  
+  const form = useForm<ProductFormData>({
+    defaultValues: {
+      name: '',
+      description: '',
+      price: 0,
+      category: [],
+      stock: 0,
+      isActive: true,
+      status: 'active',
+      imageUrl: '',
+      variations: [],
+      type: showBundles ? 'bundle' : 'other',
+      bundleProducts: [],
+      bundleSavings: 0,
+      isSpecialDeal: false
+    }
   })
 
   useEffect(() => {
@@ -183,16 +172,14 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
 
   useEffect(() => {
     if (selectedProduct) {
-      setFormData({
-        name: selectedProduct.name,
-        description: selectedProduct.description || '',
-        price: selectedProduct.price,
-        stock: selectedProduct.stock,
-        category: selectedProduct.category,
-        imageUrl: selectedProduct.imageUrl || '',
-        weightSize: selectedProduct.weightSize || '',
-        isActive: selectedProduct.isActive
-      })
+      form.setValue('name', selectedProduct.name)
+      form.setValue('description', selectedProduct.description || '')
+      form.setValue('price', selectedProduct.price)
+      form.setValue('stock', selectedProduct.stock)
+      form.setValue('category', selectedProduct.category)
+      form.setValue('imageUrl', selectedProduct.imageUrl || '')
+      form.setValue('weightSize', selectedProduct.weightSize || '')
+      form.setValue('isActive', selectedProduct.isActive)
     }
   }, [selectedProduct])
 
@@ -232,16 +219,7 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
 
   const handleNew = () => {
     setSelectedProduct(null)
-    setFormData({
-      name: '',
-      description: '',
-      price: 0,
-      stock: 0,
-      category: [],
-      imageUrl: '',
-      weightSize: '',
-      isActive: true
-    })
+    form.reset()
     setIsNewDialogOpen(true)
   }
 
@@ -366,70 +344,54 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
 
   const handleCreateSpecialDeal = async (product: Product) => {
     setSelectedProduct(null)
-    setFormData({
-      name: `${product.name} (Special)`,
-      description: product.description || '',
-      price: product.price,
-      stock: product.stock,
-      category: product.category,
-      imageUrl: product.imageUrl || '',
-      weightSize: product.weightSize || '',
-      isActive: true,
-      isSpecialDeal: true,
-      originalProductId: product.id,
-      specialPrice: product.price * 0.8, // 20% discount by default
-      specialStartDate: new Date().toISOString().split('T')[0],
-      specialEndDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 1 week from now
-      variations: product.variations || []
-    })
+    form.setValue('name', `${product.name} (Special)`)
+    form.setValue('description', product.description || '')
+    form.setValue('price', product.price)
+    form.setValue('stock', product.stock)
+    form.setValue('category', product.category)
+    form.setValue('imageUrl', product.imageUrl || '')
+    form.setValue('weightSize', product.weightSize || '')
+    form.setValue('isActive', true)
+    form.setValue('isSpecialDeal', true)
+    form.setValue('originalProductId', product.id)
+    form.setValue('specialPrice', product.price * 0.8) // 20% discount by default
+    form.setValue('specialStartDate', new Date().toISOString().split('T')[0])
+    form.setValue('specialEndDate', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]) // 1 week from now
+    form.setValue('variations', product.variations || [])
     setIsNewDialogOpen(true)
   }
 
+  const handleBundleProductAdd = (product: Product) => {
+    if (!bundleProducts) return
+
+    const newBundleProduct: BundleProduct = {
+      id: product.id,
+      quantity: 1,
+      product
+    }
+
+    setBundleProducts([...bundleProducts, newBundleProduct])
+    form.setValue('bundleProducts', [...bundleProducts, newBundleProduct])
+  }
+
+  const handleBundleProductRemove = (index: number) => {
+    if (!bundleProducts) return
+
+    const newBundleProducts = bundleProducts.filter((_, i) => i !== index)
+    setBundleProducts(newBundleProducts)
+    form.setValue('bundleProducts', newBundleProducts)
+  }
+
+  const handleBundleProductQuantityChange = (index: number, value: number) => {
+    if (!bundleProducts) return
+
+    const newBundleProducts = [...bundleProducts]
+    newBundleProducts[index].quantity = value
+    setBundleProducts(newBundleProducts)
+    form.setValue('bundleProducts', newBundleProducts)
+  }
+
   const renderProductForm = () => {
-    const form = useForm<ProductFormSchema>({
-      resolver: zodResolver(productSchema),
-      defaultValues: {
-        name: selectedProduct?.name || '',
-        description: selectedProduct?.description || '',
-        price: selectedProduct?.price || 0,
-        stock: selectedProduct?.stock || 0,
-        category: selectedProduct?.category || [],
-        imageUrl: selectedProduct?.imageUrl || '',
-        weightSize: selectedProduct?.weightSize || '',
-        isActive: selectedProduct?.isActive ?? true,
-        type: selectedProduct?.type || (showBundles ? 'bundle' : 'other'),
-        details: selectedProduct?.details || {},
-        variations: selectedProduct?.variations || [],
-        bundleProducts: selectedProduct?.bundleProducts || [],
-        bundleSavings: selectedProduct?.bundleSavings || 0,
-        isBundleDeal: selectedProduct?.type === 'bundle' || showBundles
-      },
-    })
-
-    // Initialize bundle products if type is bundle and no bundle products exist
-    useEffect(() => {
-      if ((form.watch('type') === 'bundle' || showBundles) && !form.watch('bundleProducts')?.length) {
-        form.setValue('bundleProducts', [{ 
-          productId: '',
-          quantity: 1,
-          name: '',
-          price: 0
-        }])
-      }
-    }, [form.watch('type')])
-
-    // Update total price when bundle products or savings change
-    useEffect(() => {
-      if (form.watch('type') === 'bundle') {
-        const bundleProducts = form.watch('bundleProducts') || []
-        const totalPrice = bundleProducts.reduce((sum, bp) => 
-          sum + (bp.price * (bp.quantity || 1)), 0
-        )
-        const savings = form.watch('bundleSavings') || 0
-        form.setValue('price', totalPrice - savings)
-      }
-    }, [form.watch('bundleProducts'), form.watch('bundleSavings')])
-
     return (
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSave)} className="space-y-6">

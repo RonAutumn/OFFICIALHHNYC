@@ -1,6 +1,6 @@
 import fs from 'fs'
 import path from 'path'
-import type { Product } from './airtable'
+import type { Product } from '@/types/product'
 
 export const LOCAL_PRODUCTS_DIR = path.join(process.cwd(), 'data')
 export const PRODUCTS_FILE = path.join(LOCAL_PRODUCTS_DIR, 'products.json')

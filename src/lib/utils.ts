@@ -15,3 +15,12 @@ export function formatPrice(price: number): string {
 export function generateOrderId(): string {
   return `HH-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
 }
+
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount)
+}

@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { toast } from "sonner"
-import type { Product, Category, ProductDetails } from "@/lib/airtable"
+import type { Product, Category, ProductDetails } from "@/types/product"
 
 interface ProductEditDialogProps {
   product?: Product & { details?: ProductDetails }
@@ -53,6 +53,8 @@ export function ProductEditDialog({
       imageUrl: "",
       variations: [],
       details: {
+        productId: `temp_${Date.now()}`,
+        lastUpdated: new Date().toISOString(),
         thcContent: 0,
         cbdContent: 0,
         strain: "hybrid",
@@ -78,13 +80,19 @@ export function ProductEditDialog({
   }
 
   const updateDetails = (updates: Partial<ProductDetails>) => {
-    setFormData(prev => ({
-      ...prev,
-      details: {
-        ...prev.details,
-        ...updates
+    setFormData(prev => {
+      const currentDetails = prev.details || {
+        productId: `temp_${Date.now()}`,
+        lastUpdated: new Date().toISOString()
       }
-    }))
+      return {
+        ...prev,
+        details: {
+          ...currentDetails,
+          ...updates
+        }
+      }
+    })
   }
 
   return (
