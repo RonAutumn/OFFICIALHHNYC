@@ -51,7 +51,10 @@ export async function POST(request: Request) {
 export async function PATCH(request: Request) {
   try {
     const product = await request.json()
-    const updatedProduct = await updateLocalProduct(product)
+    const updatedProduct = await updateLocalProduct({
+      ...product,
+      id: product.id
+    })
     return NextResponse.json(updatedProduct)
   } catch (error) {
     console.error('Error updating product:', error)

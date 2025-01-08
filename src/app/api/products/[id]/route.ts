@@ -70,7 +70,7 @@ export async function PATCH(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: Params
 ) {
   try {
     const data = await request.json()
@@ -79,13 +79,16 @@ export async function PUT(
     // Extract base product data and extended details
     const { details, ...productData } = data
 
-    const product = await updateLocalProduct(params.id, productData)
+    const product = await updateLocalProduct({
+      id: params.id,
+      ...productData
+    })
     
     // Update extended details if provided
     if (details) {
       await saveLocalProductDetails({
         ...details,
-        productId: params.id,
+        id: params.id,
         lastUpdated: new Date().toISOString()
       })
     }

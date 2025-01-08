@@ -454,9 +454,9 @@ export async function createLocalProduct(data: Partial<Product>): Promise<Produc
 }
 
 // Update a local product
-export async function updateLocalProduct(id: string, data: Partial<Product>): Promise<Product> {
+export async function updateLocalProduct(product: Partial<Product> & { id: string }): Promise<Product> {
   const products = await getLocalProducts()
-  const index = products.findIndex(p => p.id === id)
+  const index = products.findIndex(p => p.id === product.id)
 
   if (index === -1) {
     throw new Error('Product not found')
@@ -464,8 +464,8 @@ export async function updateLocalProduct(id: string, data: Partial<Product>): Pr
 
   const updatedProduct = {
     ...products[index],
-    ...data,
-    id // Ensure ID doesn't change
+    ...product,
+    id: product.id // Ensure ID doesn't change
   }
 
   products[index] = updatedProduct
