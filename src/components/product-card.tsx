@@ -1,6 +1,6 @@
 'use client';
 
-import { Product } from '@/lib/airtable';
+import { Product, ProductVariation } from '@/types/product';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
@@ -22,13 +22,13 @@ interface ProductCardProps {
 
 export function ProductCard({ product }: ProductCardProps) {
   const [selectedVariation, setSelectedVariation] = useState<string | undefined>(
-    product.variations?.find(v => v.name)?.name
+    product.variations?.find((v: ProductVariation) => v.name)?.name
   );
   const { addItem } = useCart();
   const { toast } = useToast();
 
   const handleAddToCart = () => {
-    const variation = product.variations?.find(v => v.name === selectedVariation);
+    const variation = product.variations?.find((v: ProductVariation) => v.name === selectedVariation);
     addItem(product, selectedVariation);
     toast({
       title: "Added to cart",
@@ -37,7 +37,7 @@ export function ProductCard({ product }: ProductCardProps) {
   };
 
   // Filter out variations with empty names
-  const validVariations = product.variations?.filter(v => v.name && v.name.trim() !== '') || [];
+  const validVariations = product.variations?.filter((v: ProductVariation) => v.name && v.name.trim() !== '') || [];
 
   return (
     <Card className="flex flex-col h-full overflow-hidden hover:shadow-lg transition-shadow">
@@ -90,7 +90,7 @@ export function ProductCard({ product }: ProductCardProps) {
               <SelectValue placeholder="Select variation" />
             </SelectTrigger>
             <SelectContent>
-              {validVariations.map((variation) => (
+              {validVariations.map((variation: ProductVariation) => (
                 <SelectItem 
                   key={variation.name || variation.id} 
                   value={variation.name || `variation-${variation.id}`}

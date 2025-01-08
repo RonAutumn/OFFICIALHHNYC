@@ -1,6 +1,6 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { ProductDetails } from './airtable'
+import { ProductDetails } from '@/types/product'
 
 const DETAILS_DIR = path.join(process.cwd(), 'data', 'products')
 
