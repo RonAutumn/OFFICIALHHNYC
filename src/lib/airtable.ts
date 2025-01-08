@@ -201,10 +201,7 @@ export interface DeliverySetting {
 
 export async function getCategories(): Promise<Category[]> {
   try {
-    console.log('Fetching categories from Airtable...');
-    
     if (!base) {
-      console.warn('Airtable not configured. Returning empty categories array.');
       return [];
     }
 
@@ -212,7 +209,6 @@ export async function getCategories(): Promise<Category[]> {
       sort: [{ field: 'Display Order', direction: 'asc' }],
     }).all();
 
-    console.log(`Found ${records.length} categories`);
     return records.map((record) => ({
       id: record.id,
       name: record.get('Name') as string,
@@ -223,17 +219,13 @@ export async function getCategories(): Promise<Category[]> {
       products: record.get('Products') as string[],
     }));
   } catch (error) {
-    console.error('Error fetching categories:', error);
     throw error;
   }
 }
 
 export async function getProducts(): Promise<Product[]> {
   try {
-    console.log('Fetching products from Airtable...');
-    
     if (!base) {
-      console.warn('Airtable not configured. Returning empty products array.');
       return [];
     }
 
@@ -254,7 +246,6 @@ export async function getProducts(): Promise<Product[]> {
       ]
     }).all();
 
-    console.log(`Found ${records.length} products`);
     return records.map((record) => {
       const status = record.get('Status') as string;
       const categoryNames = (record.get('Name (from Category)') || []) as string[];
@@ -282,17 +273,13 @@ export async function getProducts(): Promise<Product[]> {
       };
     });
   } catch (error) {
-    console.error('Error fetching products:', error);
     throw error;
   }
 }
 
 export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
   try {
-    console.log(`Fetching products for category ${categoryId}...`);
-    
     if (!base) {
-      console.warn('Airtable not configured. Returning empty products array.');
       return [];
     }
 
@@ -314,7 +301,6 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
       ]
     }).all();
 
-    console.log(`Found ${records.length} products in category`);
     return records.map((record) => {
       const status = record.get('Status') as string;
       const categoryNames = (record.get('Name (from Category)') || []) as string[];
@@ -342,17 +328,13 @@ export async function getProductsByCategory(categoryId: string): Promise<Product
       };
     });
   } catch (error) {
-    console.error('Error fetching products by category:', error);
     throw error;
   }
 }
 
 export async function getDeliverySettings(): Promise<DeliverySetting[]> {
   try {
-    console.log('Fetching delivery settings from Airtable...');
-    
     if (!base) {
-      console.warn('Airtable not configured. Returning default delivery settings.');
       return [
         {
           borough: 'Manhattan',
@@ -371,22 +353,18 @@ export async function getDeliverySettings(): Promise<DeliverySetting[]> {
       view: 'Grid view'
     }).all();
 
-    console.log(`Found ${records.length} delivery settings`);
     return records.map((record) => ({
       borough: record.get('Borough') as string,
       deliveryFee: record.get('Delivery fee') as number,
       freeDeliveryMinimum: record.get('Free Delivery Minimum') as number,
     }));
   } catch (error) {
-    console.error('Error fetching delivery settings:', error);
     throw error;
   }
 }
 
 export async function updateProductStatus(productId: string, isActive: boolean): Promise<Product> {
   try {
-    console.log(`Updating product ${productId} status to ${isActive}...`);
-    
     if (!base) {
       throw new Error('Airtable not configured');
     }
@@ -409,15 +387,12 @@ export async function updateProductStatus(productId: string, isActive: boolean):
       weightSize: record.get('Weight/Size') as string,
     };
   } catch (error) {
-    console.error('Error updating product status:', error);
     throw error;
   }
 }
 
 export async function updateProduct(productId: string, data: Partial<Product>): Promise<Product> {
   try {
-    console.log(`Updating product ${productId}...`);
-    
     if (!base) {
       throw new Error('Airtable not configured');
     }
@@ -447,15 +422,12 @@ export async function updateProduct(productId: string, data: Partial<Product>): 
       weightSize: record.get('Weight/Size') as string,
     };
   } catch (error) {
-    console.error('Error updating product:', error);
     throw error;
   }
 }
 
 export async function createProduct(data: Partial<Product>): Promise<Product> {
   try {
-    console.log('Creating new product...');
-    
     if (!base) {
       throw new Error('Airtable not configured');
     }
@@ -485,7 +457,6 @@ export async function createProduct(data: Partial<Product>): Promise<Product> {
       weightSize: record.get('Weight/Size') as string,
     };
   } catch (error) {
-    console.error('Error creating product:', error);
     throw error;
   }
 }
@@ -567,9 +538,7 @@ export async function saveProductsToFile(products: Product[]): Promise<void> {
       PRODUCTS_FILE,
       JSON.stringify({ products: mergedProducts }, null, 2)
     )
-    console.log('Products saved to file successfully')
   } catch (error) {
-    console.error('Error saving products to file:', error)
     throw error
   }
 }
@@ -587,7 +556,6 @@ export async function getAllProducts(): Promise<Product[]> {
 
     return [...airtableProducts, ...validLocalProducts]
   } catch (error) {
-    console.error('Error getting all products:', error)
     throw error
   }
 }
@@ -616,9 +584,7 @@ export async function saveCategoriesToFile(categories: Category[]): Promise<void
       CATEGORIES_FILE,
       JSON.stringify({ categories: mergedCategories }, null, 2)
     )
-    console.log('Categories saved to file successfully')
   } catch (error) {
-    console.error('Error saving categories to file:', error)
     throw error
   }
 }
@@ -684,7 +650,6 @@ export async function getAllCategories(): Promise<Category[]> {
       (a.displayOrder || 0) - (b.displayOrder || 0)
     );
   } catch (error) {
-    console.error('Error fetching categories:', error);
     throw error;
   }
 }
@@ -692,8 +657,6 @@ export async function getAllCategories(): Promise<Category[]> {
 // Update category in Airtable
 export async function updateCategory(categoryId: string, data: Partial<Category>): Promise<Category> {
   try {
-    console.log(`Updating category ${categoryId}...`)
-    
     if (!base) {
       throw new Error('Airtable not configured');
     }
@@ -717,7 +680,6 @@ export async function updateCategory(categoryId: string, data: Partial<Category>
       products: record.get('Products') as string[]
     }
   } catch (error) {
-    console.error('Error updating category:', error)
     throw error
   }
 }
@@ -725,8 +687,6 @@ export async function updateCategory(categoryId: string, data: Partial<Category>
 // Create category in Airtable
 export async function createCategory(data: Partial<Category>): Promise<Category> {
   try {
-    console.log('Creating new category...')
-    
     if (!base) {
       throw new Error('Airtable not configured');
     }
@@ -750,7 +710,6 @@ export async function createCategory(data: Partial<Category>): Promise<Category>
       products: record.get('Products') as string[]
     }
   } catch (error) {
-    console.error('Error creating category:', error)
     throw error
   }
 }
