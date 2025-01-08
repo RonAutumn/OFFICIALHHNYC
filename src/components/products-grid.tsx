@@ -21,7 +21,7 @@ export function ProductsGrid() {
   const searchParams = useSearchParams();
   const selectedCategory = searchParams.get('category');
 
-  const { data: products, isLoading, error } = useQuery<Product[]>({
+  const { data: products, isLoading, error } = useQuery({
     queryKey: ['products', selectedCategory],
     queryFn: () => fetchProducts(selectedCategory),
   });

@@ -3,14 +3,14 @@ import { productService } from '@/lib/services/products';
 import type { Product } from '@/types';
 
 export function useProducts() {
-  return useQuery<Product[]>({
+  return useQuery({
     queryKey: ['products'],
     queryFn: () => productService.getAll(),
   });
 }
 
 export function useProduct(id: string) {
-  return useQuery<Product>({
+  return useQuery({
     queryKey: ['products', id],
     queryFn: () => productService.getById(id),
     enabled: !!id,
@@ -18,7 +18,7 @@ export function useProduct(id: string) {
 }
 
 export function useProductsByCategory(category: string) {
-  return useQuery<Product[]>({
+  return useQuery({
     queryKey: ['products', 'category', category],
     queryFn: () => productService.getByCategory(category),
     enabled: !!category,

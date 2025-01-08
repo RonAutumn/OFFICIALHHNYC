@@ -1,14 +1,21 @@
-import { Metadata } from "next"
+import { redirect } from "next/navigation"
+import { cookies } from "next/headers"
 
-export const metadata: Metadata = {
-  title: "Admin Dashboard",
-  description: "Admin dashboard for managing orders and products",
-}
-
-export default function AdminLayout({
+export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return children
-} 
+  const cookieStore = cookies()
+  const isAdmin = cookieStore.get('admin_access')
+
+  if (!isAdmin) {
+    redirect('/admin/login')
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {children}
+    </div>
+  )
+}

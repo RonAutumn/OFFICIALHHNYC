@@ -5,8 +5,17 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Category } from '@/lib/airtable';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Tag, LayoutGrid } from 'lucide-react';
+import { Tag, LayoutGrid, Menu } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { Button } from '@/components/ui/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { cn } from '@/lib/utils';
 
 async function fetchCategories(): Promise<Category[]> {
   const response = await fetch('/api/categories');
@@ -36,32 +45,80 @@ function deduplicateCategories(categories: Category[]): Category[] {
   );
 }
 
+function CategoryList({ 
+  categories, 
+  selectedCategory, 
+  onCategoryClick,
+  className 
+}: { 
+  categories: Category[], 
+  selectedCategory: string | null,
+  onCategoryClick: (categoryId: string | null) => void,
+  className?: string
+}) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      <div
+        className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+          !selectedCategory ? 'bg-secondary' : 'hover:bg-secondary/50'
+        }`}
+        onClick={() => onCategoryClick(null)}
+      >
+        <LayoutGrid className="h-4 w-4" />
+        <span>All Products</span>
+        {!selectedCategory && (
+          <Badge variant="secondary" className="ml-auto">
+            Selected
+          </Badge>
+        )}
+      </div>
+      {categories.map((category) => (
+        <div
+          key={category.id}
+          className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+            selectedCategory === category.id ? 'bg-secondary' : 'hover:bg-secondary/50'
+          }`}
+          onClick={() => onCategoryClick(category.id)}
+        >
+          <Tag className="h-4 w-4" />
+          <span>{category.name}</span>
+          {selectedCategory === category.id && (
+            <Badge variant="secondary" className="ml-auto">
+              Selected
+            </Badge>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function CategoriesPanel() {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const selectedCategory = searchParams.get('category');
 
-  const { data: categories, isLoading, error } = useQuery<Category[]>({
+  const { data: categories, isLoading, error } = useQuery({
     queryKey: ['categories'],
     queryFn: fetchCategories,
   });
 
   const handleCategoryClick = (categoryId: string | null) => {
-    const params = new URLSearchParams(searchParams.toString());
-    if (categoryId === null) {
-      params.delete('category');
-    } else {
+    const params = new URLSearchParams(searchParams);
+    if (categoryId) {
       params.set('category', categoryId);
+    } else {
+      params.delete('category');
     }
     router.push(`/store?${params.toString()}`);
   };
 
   if (error) {
     return (
-      <Card className="w-full">
-        <CardHeader className="p-2">
-          <CardTitle className="text-red-500 text-sm">Error</CardTitle>
-          <CardDescription className="text-xs">Failed to load categories</CardDescription>
+      <Card>
+        <CardHeader>
+          <CardTitle>Categories</CardTitle>
+          <CardDescription>Failed to load categories</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -69,76 +126,65 @@ export function CategoriesPanel() {
 
   if (isLoading) {
     return (
-      <Card className="w-full">
-        <CardHeader className="p-2">
-          <Skeleton className="h-4 w-[100px]" />
-          <Skeleton className="h-3 w-[150px] mt-1" />
+      <Card>
+        <CardHeader>
+          <CardTitle>Categories</CardTitle>
         </CardHeader>
-        <CardContent className="grid gap-2 p-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-8" />
+        <CardContent className="space-y-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-8 w-full" />
           ))}
         </CardContent>
       </Card>
     );
   }
 
-  const uniqueCategories = deduplicateCategories(categories || []);
+  const uniqueCategories = categories ? deduplicateCategories(categories) : [];
 
   return (
-    <Card className="w-full">
-      <CardHeader className="p-2">
-        <CardTitle className="text-base">Categories</CardTitle>
-        <CardDescription className="text-xs">Browse products by category</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-2 p-2">
-        {/* All Products Tab */}
-        <div
-          onClick={() => handleCategoryClick(null)}
-          className={`flex items-center justify-between p-2 rounded-md border bg-card text-card-foreground shadow-sm hover:shadow-md transition-all cursor-pointer ${
-            !selectedCategory ? 'ring-1 ring-primary bg-primary/5' : ''
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <LayoutGrid className="h-4 w-4" />
-            <div>
-              <h3 className="font-medium">All Products</h3>
-              <p className="text-sm text-muted-foreground">View all available products</p>
+    <>
+      {/* Mobile Categories Sheet */}
+      <div className="md:hidden">
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button variant="outline" size="icon" className="fixed bottom-4 right-4 h-12 w-12 rounded-full shadow-lg">
+              <Tag className="h-6 w-6" />
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="left" className="w-[300px] sm:w-[400px]">
+            <SheetHeader>
+              <SheetTitle className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Categories
+              </SheetTitle>
+            </SheetHeader>
+            <div className="mt-4">
+              <CategoryList 
+                categories={uniqueCategories} 
+                selectedCategory={selectedCategory}
+                onCategoryClick={handleCategoryClick}
+              />
             </div>
-          </div>
-        </div>
+          </SheetContent>
+        </Sheet>
+      </div>
 
-        {uniqueCategories.map((category) => (
-          <div
-            key={category.id}
-            onClick={() => handleCategoryClick(category.id)}
-            className={`flex items-center justify-between p-4 rounded-lg border bg-card text-card-foreground shadow-sm hover:shadow-md transition-all cursor-pointer ${
-              category.name === 'Deals' ? 'bg-primary/5 border-primary/20' : ''
-            } ${
-              selectedCategory === category.id ? 'ring-2 ring-primary' : ''
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              {category.name === 'Deals' && (
-                <Tag className="h-4 w-4 text-primary" />
-              )}
-              <div>
-                <h3 className="font-medium flex items-center gap-2">
-                  {category.name}
-                  {category.name === 'Deals' && (
-                    <Badge variant="secondary" className="bg-primary/10 text-primary hover:bg-primary/20">
-                      Special Offers
-                    </Badge>
-                  )}
-                </h3>
-                {category.description && (
-                  <p className="text-sm text-muted-foreground">{category.description}</p>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+      {/* Desktop Categories Panel */}
+      <Card className="hidden md:block">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Tag className="h-4 w-4" />
+            Categories
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CategoryList 
+            categories={uniqueCategories} 
+            selectedCategory={selectedCategory}
+            onCategoryClick={handleCategoryClick}
+          />
+        </CardContent>
+      </Card>
+    </>
   );
 } 

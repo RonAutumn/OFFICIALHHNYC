@@ -2,20 +2,20 @@ import { promises as fs } from 'fs'
 import path from 'path'
 import Airtable from 'airtable'
 
-// Initialize Airtable if environment variables are present
-const airtableConfig = {
-  apiKey: process.env.AIRTABLE_API_KEY,
-  baseId: process.env.AIRTABLE_BASE_ID
-};
+if (!process.env.AIRTABLE_API_KEY || !process.env.AIRTABLE_BASE_ID) {
+  throw new Error('Missing Airtable environment variables')
+}
 
-export const base = airtableConfig.apiKey && airtableConfig.baseId
-  ? new Airtable({ apiKey: airtableConfig.apiKey }).base(airtableConfig.baseId)
-  : null;
+// Initialize Airtable
+export const base = new Airtable({
+  apiKey: process.env.AIRTABLE_API_KEY,
+}).base(process.env.AIRTABLE_BASE_ID)
 
 // File paths
 const LOCAL_PRODUCTS_DIR = path.join(process.cwd(), 'data', 'local-products')
 const PRODUCTS_FILE = path.join(LOCAL_PRODUCTS_DIR, 'products.json')
 const CATEGORIES_FILE = path.join(LOCAL_PRODUCTS_DIR, 'categories.json')
+const ORDERS_FILE = path.join(LOCAL_PRODUCTS_DIR, 'orders.json')
 
 // Ensure directories exist
 async function ensureDirectories() {
@@ -44,17 +44,354 @@ async function initCategoriesFile() {
   }
 }
 
-// Get all local products
-async function getLocalProducts(): Promise<Product[]> {
-  await ensureDirectories()
-  await initProductsFile()
+// Initialize orders file if it doesn't exist
+async function initOrdersFile() {
+  try {
+    await fs.access(ORDERS_FILE)
+  } catch {
+    await fs.writeFile(ORDERS_FILE, JSON.stringify({ orders: [] }, null, 2))
+  }
+}
 
-  const data = await fs.readFile(PRODUCTS_FILE, 'utf-8')
-  return JSON.parse(data).products
+// Initialize files
+ensureDirectories()
+  .then(() => Promise.all([initProductsFile(), initCategoriesFile(), initOrdersFile()]))
+  .catch(console.error)
+
+// Product Variation Types
+export type VariationType = 'flavor' | 'size' | 'brand' | 'strain' | 'weight'
+
+export interface ProductVariation {
+  id: string
+  type: VariationType
+  name: string
+  price?: number // Additional price
+  sku?: string
+  stock?: number
+  isActive: boolean
+}
+
+export interface Category {
+  id: string
+  name: string
+  description?: string
+  displayOrder?: number
+  isActive: boolean
+  products?: string[]
+  slug?: string
+}
+
+export interface Product {
+  id: string
+  name: string
+  description?: string
+  price: number
+  category: string[]
+  categoryNames?: string[]
+  isActive: boolean
+  imageUrl?: string
+  stock: number
+  status: string
+  weightSize?: string | number
+}
+
+export interface DeliverySetting {
+  borough: string
+  deliveryFee: number
+  freeDeliveryMinimum: number
+}
+
+export interface OrderItem {
+  productId: string
+  productName: string
+  quantity: number
+  price: number
+  total: number
+}
+
+export interface Order {
+  id: string
+  orderNumber: string
+  customerName: string
+  customerEmail: string
+  customerPhone: string
+  deliveryAddress: string
+  borough: string
+  items: OrderItem[]
+  subtotal: number
+  deliveryFee: number
+  total: number
+  status: 'pending' | 'confirmed' | 'processing' | 'out_for_delivery' | 'delivered' | 'cancelled'
+  paymentStatus: 'pending' | 'paid' | 'failed'
+  paymentMethod: 'cash' | 'card' | 'other'
+  notes?: string
+  createdAt: string
+  updatedAt: string
+  syncedToAirtable: boolean
+}
+
+// Get all local orders
+async function getLocalOrders(): Promise<Order[]> {
+  await ensureDirectories()
+  await initOrdersFile()
+
+  try {
+    const data = await fs.readFile(ORDERS_FILE, 'utf-8')
+    return JSON.parse(data).orders
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return []
+    }
+    throw error
+  }
+}
+
+// Save orders to local file
+async function saveOrdersToFile(orders: Order[]): Promise<void> {
+  await ensureDirectories()
+  await fs.writeFile(ORDERS_FILE, JSON.stringify({ orders }, null, 2))
+}
+
+// Create a new local order
+export async function createLocalOrder(orderData: Omit<Order, 'id' | 'syncedToAirtable'>): Promise<Order> {
+  const orders = await getLocalOrders()
+  
+  const newOrder: Order = {
+    ...orderData,
+    id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
+    syncedToAirtable: false
+  }
+
+  await saveOrdersToFile([...orders, newOrder])
+  
+  // Try to sync immediately if possible
+  try {
+    await syncOrderToAirtable(newOrder)
+  } catch (error) {
+    console.error('Failed to sync order to Airtable:', error)
+    // Don't throw error here, as the order is still saved locally
+  }
+
+  return newOrder
+}
+
+// Sync a single order to Airtable
+export async function syncOrderToAirtable(order: Order): Promise<void> {
+  if (order.syncedToAirtable) {
+    return
+  }
+
+  try {
+    await base('Orders').create({
+      'Order Number': order.orderNumber,
+      'Customer Name': order.customerName,
+      'Customer Email': order.customerEmail,
+      'Customer Phone': order.customerPhone,
+      'Delivery Address': order.deliveryAddress,
+      'Borough': order.borough,
+      'Items': JSON.stringify(order.items),
+      'Subtotal': order.subtotal,
+      'Delivery Fee': order.deliveryFee,
+      'Total': order.total,
+      'Status': order.status,
+      'Payment Status': order.paymentStatus,
+      'Payment Method': order.paymentMethod,
+      'Notes': order.notes,
+      'Created At': order.createdAt,
+      'Updated At': order.updatedAt
+    })
+
+    // Update local order to mark as synced
+    const orders = await getLocalOrders()
+    const updatedOrders = orders.map(o => 
+      o.id === order.id ? { ...o, syncedToAirtable: true } : o
+    )
+    await saveOrdersToFile(updatedOrders)
+
+  } catch (error) {
+    console.error('Error syncing order to Airtable:', error)
+    throw error
+  }
+}
+
+// Sync all unsynced orders to Airtable
+export async function syncUnsynedOrders(): Promise<void> {
+  const orders = await getLocalOrders()
+  const unsynced = orders.filter(order => !order.syncedToAirtable)
+
+  for (const order of unsynced) {
+    try {
+      await syncOrderToAirtable(order)
+    } catch (error) {
+      console.error(`Failed to sync order ${order.id}:`, error)
+      // Continue with next order even if one fails
+    }
+  }
+}
+
+// Get all orders (both local and from Airtable)
+export async function getAllOrders(): Promise<Order[]> {
+  const localOrders = await getLocalOrders()
+  
+  try {
+    const records = await base('Orders').select({
+      sort: [{ field: 'Created At', direction: 'desc' }]
+    }).all()
+
+    const airtableOrders = records.map(record => ({
+      id: record.id,
+      orderNumber: record.get('Order Number') as string,
+      customerName: record.get('Customer Name') as string,
+      customerEmail: record.get('Customer Email') as string,
+      customerPhone: record.get('Customer Phone') as string,
+      deliveryAddress: record.get('Delivery Address') as string,
+      borough: record.get('Borough') as string,
+      items: JSON.parse(record.get('Items') as string) as OrderItem[],
+      subtotal: record.get('Subtotal') as number,
+      deliveryFee: record.get('Delivery Fee') as number,
+      total: record.get('Total') as number,
+      status: record.get('Status') as Order['status'],
+      paymentStatus: record.get('Payment Status') as Order['paymentStatus'],
+      paymentMethod: record.get('Payment Method') as Order['paymentMethod'],
+      notes: record.get('Notes') as string,
+      createdAt: record.get('Created At') as string,
+      updatedAt: record.get('Updated At') as string,
+      syncedToAirtable: true
+    }))
+
+    // Combine and sort by creation date
+    const allOrders = [...localOrders, ...airtableOrders]
+    return allOrders.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )
+
+  } catch (error) {
+    console.error('Error fetching orders from Airtable:', error)
+    // Return local orders if Airtable fetch fails
+    return localOrders
+  }
+}
+
+// Update order status
+export async function updateOrderStatus(
+  orderId: string, 
+  status: Order['status']
+): Promise<void> {
+  const orders = await getLocalOrders()
+  const orderIndex = orders.findIndex(o => o.id === orderId)
+
+  if (orderIndex === -1) {
+    // If not found locally, try to update in Airtable
+    try {
+      await base('Orders').update(orderId, {
+        'Status': status,
+        'Updated At': new Date().toISOString()
+      })
+    } catch (error) {
+      console.error('Error updating order status in Airtable:', error)
+      throw error
+    }
+    return
+  }
+
+  // Update local order
+  const updatedOrder = {
+    ...orders[orderIndex],
+    status,
+    updatedAt: new Date().toISOString()
+  }
+  orders[orderIndex] = updatedOrder
+
+  await saveOrdersToFile(orders)
+
+  // If the order was previously synced, update Airtable as well
+  if (updatedOrder.syncedToAirtable) {
+    try {
+      await base('Orders').update(orderId, {
+        'Status': status,
+        'Updated At': updatedOrder.updatedAt
+      })
+    } catch (error) {
+      console.error('Error updating order status in Airtable:', error)
+      // Don't throw here as local update was successful
+    }
+  }
+}
+
+export async function getCategories(): Promise<Category[]> {
+  try {
+    console.log('Fetching categories from Airtable...')
+    const records = await base('Category').select({
+      sort: [{ field: 'Display Order', direction: 'asc' }],
+      filterByFormula: '{Is Active} = TRUE()'
+    }).all()
+
+    console.log(`Found ${records.length} categories`)
+    
+    // Create a Map to store unique categories by name
+    const categoryMap = new Map<string, Category>()
+
+    records.forEach(record => {
+      const name = record.get('Name') as string
+      if (!name) return // Skip if no name
+
+      const existing = categoryMap.get(name)
+      if (existing) {
+        // Merge products arrays if they exist
+        const newProducts = record.get('Products') as string[] | undefined
+        if (newProducts) {
+          existing.products = [...(existing.products || []), ...newProducts]
+        }
+      } else {
+        categoryMap.set(name, {
+          id: record.id,
+          name,
+          description: record.get('Description') as string,
+          displayOrder: record.get('Display Order') as number,
+          isActive: record.get('Is Active') as boolean,
+          products: record.get('Products') as string[],
+          slug: record.get('Slug') as string,
+        })
+      }
+    })
+
+    // Convert Map back to array and sort by display order
+    const categories = Array.from(categoryMap.values())
+    return categories.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
+  } catch (error) {
+    console.error('Error fetching categories:', error)
+    throw error
+  }
+}
+
+export async function createCategory(data: Partial<Category>): Promise<Category> {
+  try {
+    const record = await base('Category').create({
+      Name: data.name || '',
+      Description: data.description || '',
+      'Display Order': data.displayOrder || 0,
+      'Is Active': data.isActive || false,
+      Products: data.products || [],
+      Slug: data.slug || '',
+    })
+
+    return {
+      id: record.id,
+      name: record.get('Name') as string,
+      description: record.get('Description') as string,
+      displayOrder: record.get('Display Order') as number,
+      isActive: record.get('Is Active') as boolean,
+      products: record.get('Products') as string[],
+      slug: record.get('Slug') as string,
+    }
+  } catch (error) {
+    console.error('Error creating category:', error)
+    throw error
+  }
 }
 
 // Get all local categories
-async function getLocalCategories(): Promise<Category[]> {
+export async function getLocalCategories(): Promise<Category[]> {
   await ensureDirectories()
   await initCategoriesFile()
 
@@ -69,494 +406,23 @@ async function getLocalCategories(): Promise<Category[]> {
   }
 }
 
-export interface Category {
-  id: string;
-  name: string;
-  description?: string;
-  displayOrder?: number;
-  isActive: boolean;
-  variations?: string[];
-  products?: string[];
-}
-
-// Product Variation Types
-export type VariationType = 'flavor' | 'size' | 'brand' | 'strain' | 'weight';
-
-export interface ProductVariation {
-  id: string;
-  type: VariationType;
-  name: string;
-  price?: number; // Additional price
-  sku?: string;
-  stock?: number;
-  isActive: boolean;
-}
-
-export interface VariationOption {
-  id: string;
-  name: string;
-  type: VariationType;
-  values: string[];
-}
-
-// Base Airtable Product Interface
-export interface Product {
-  id: string;
-  name: string;
-  description?: string;
-  price: number;
-  category: string[];
-  categoryNames?: string[];
-  isActive: boolean;
-  imageUrl?: string;
-  stock: number;
-  status: string;
-  weightSize?: string | number;
-  type?: 'flower' | 'edible' | 'cart' | 'other' | 'bundle';
-  variations?: ProductVariation[];
-  needsSync?: boolean;
-  details?: ProductDetails;
-  bundleProducts?: Array<{
-    id: string;
-    quantity: number;
-    product: Product;
-  }>;
-  bundleSavings?: number;
-  isSpecialDeal?: boolean;
-  specialPrice?: number;
-  specialStartDate?: string;
-  specialEndDate?: string;
-}
-
-// Extended Product Details Interface
-export interface ProductDetails {
-  productId: string;
-  // Base Cannabis Info
-  thcContent?: number;
-  cbdContent?: number;
-  thcvContent?: number;
-  cbgContent?: number;
-  cbcContent?: number;
-  terpenes?: string[];
-  strain?: 'sativa' | 'indica' | 'hybrid';
-  strainRatio?: string;
-  effects?: string[];
-  
-  // Cart Specific
-  cartType?: 'distillate' | 'live resin' | 'full spectrum' | 'co2';
-  cartridgeSize?: '0.5g' | '1.0g';
-  batteryCompatibility?: string[];
-  hardwareType?: string;
-  coilType?: string;
-  cartFlavors?: string[]; // Available flavors for this cart
-  cartBrands?: string[]; // Available brands for this cart
-  
-  // Flower Specific
-  flowerWeights?: string[]; // Available weights for flower
-  flowerGrade?: 'top shelf' | 'mid shelf' | 'value';
-  cureMethod?: string;
-  trimType?: 'hand' | 'machine';
-  
-  // Edible Specific
-  servingSize?: string;
-  servingsPerPackage?: number;
-  ingredients?: string;
-  allergens?: string;
-  storageInstructions?: string;
-  edibleFlavors?: string[]; // Available flavors for edibles
-  
-  // Lab Results
-  labTested?: boolean;
-  labTestDate?: string;
-  labTestProvider?: string;
-  coa?: string; // Certificate of Analysis URL
-  
-  // Compliance
-  warningLabels?: string[];
-  childResistant?: boolean;
-  complianceNotes?: string;
-  
-  // Metadata
-  lastUpdated: string;
-  batchNumber?: string;
-  manufacturingDate?: string;
-  expirationDate?: string;
-  
-  // Variation Templates
-  variationTemplates?: {
-    [key in VariationType]?: string[]; // Predefined options for each variation type
-  };
-}
-
-// Combined Product Interface for UI
-export interface ProductWithDetails extends Product {
-  details?: ProductDetails;
-}
-
-export interface DeliverySetting {
-  borough: string;
-  deliveryFee: number;
-  freeDeliveryMinimum: number;
-}
-
-export async function getCategories(): Promise<Category[]> {
+// Get all categories (both Airtable and local)
+export async function getAllCategories(): Promise<Category[]> {
   try {
-    if (!base) {
-      return [];
-    }
-
-    const records = await base('Category').select({
-      sort: [{ field: 'Display Order', direction: 'asc' }],
-    }).all();
-
-    return records.map((record) => ({
-      id: record.id,
-      name: record.get('Name') as string,
-      description: record.get('Description') as string,
-      displayOrder: record.get('Display Order') as number,
-      isActive: record.get('Is Active') as boolean,
-      variations: record.get('Variations') as string[],
-      products: record.get('Products') as string[],
-    }));
-  } catch (error) {
-    throw error;
-  }
-}
-
-export async function getProducts(): Promise<Product[]> {
-  try {
-    if (!base) {
-      return [];
-    }
-
-    const records = await base('Products').select({
-      sort: [{ field: 'Name', direction: 'asc' }],
-      view: 'Grid view',
-      fields: [
-        'Name',
-        'Description',
-        'Price',
-        'Category',
-        'Status',
-        'Image URL',
-        'Stock',
-        'Weight/Size',
-        'Name (from Category)',
-        'Is Active (from Category)'
-      ]
-    }).all();
-
-    return records.map((record) => {
-      const status = record.get('Status') as string;
-      const categoryNames = (record.get('Name (from Category)') || []) as string[];
-      const isActiveFromCategory = (record.get('Is Active (from Category)') || [true]) as boolean[];
-      const weightSize = record.get('Weight/Size');
-      
-      // Convert weight/size to number if possible
-      const parsedWeightSize = typeof weightSize === 'string' ? 
-        parseFloat(weightSize) || weightSize : 
-        (typeof weightSize === 'number' ? weightSize : undefined);
-
-      return {
-        id: record.id,
-        name: record.get('Name') as string,
-        description: record.get('Description') as string,
-        price: record.get('Price') as number,
-        category: record.get('Category') as string[],
-        categoryNames,
-        isActive: (status?.toLowerCase() === 'active') && 
-          isActiveFromCategory.every(Boolean),
-        imageUrl: record.get('Image URL') as string,
-        stock: record.get('Stock') as number,
-        status: status || 'inactive',
-        weightSize: parsedWeightSize
-      };
-    });
-  } catch (error) {
-    throw error;
-  }
-}
-
-export async function getProductsByCategory(categoryId: string): Promise<Product[]> {
-  try {
-    if (!base) {
-      return [];
-    }
-
-    const records = await base('Products').select({
-      filterByFormula: `FIND("${categoryId}", ARRAYJOIN(Category, ",")) > 0`,
-      sort: [{ field: 'Name', direction: 'asc' }],
-      view: 'Grid view',
-      fields: [
-        'Name',
-        'Description',
-        'Price',
-        'Category',
-        'Status',
-        'Image URL',
-        'Stock',
-        'Weight/Size',
-        'Name (from Category)',
-        'Is Active (from Category)'
-      ]
-    }).all();
-
-    return records.map((record) => {
-      const status = record.get('Status') as string;
-      const categoryNames = (record.get('Name (from Category)') || []) as string[];
-      const isActiveFromCategory = (record.get('Is Active (from Category)') || [true]) as boolean[];
-      const weightSize = record.get('Weight/Size');
-      
-      // Convert weight/size to number if possible
-      const parsedWeightSize = typeof weightSize === 'string' ? 
-        parseFloat(weightSize) || weightSize : 
-        (typeof weightSize === 'number' ? weightSize : undefined);
-
-      return {
-        id: record.id,
-        name: record.get('Name') as string,
-        description: record.get('Description') as string,
-        price: record.get('Price') as number,
-        category: record.get('Category') as string[],
-        categoryNames,
-        isActive: (status?.toLowerCase() === 'active') && 
-          isActiveFromCategory.every(Boolean),
-        imageUrl: record.get('Image URL') as string,
-        stock: record.get('Stock') as number,
-        status: status || 'inactive',
-        weightSize: parsedWeightSize
-      };
-    });
-  } catch (error) {
-    throw error;
-  }
-}
-
-export async function getDeliverySettings(): Promise<DeliverySetting[]> {
-  try {
-    if (!base) {
-      return [
-        {
-          borough: 'Manhattan',
-          deliveryFee: 10,
-          freeDeliveryMinimum: 100,
-        },
-        {
-          borough: 'Brooklyn',
-          deliveryFee: 15,
-          freeDeliveryMinimum: 150,
-        },
-      ];
-    }
-
-    const records = await base('Settings').select({
-      view: 'Grid view'
-    }).all();
-
-    return records.map((record) => ({
-      borough: record.get('Borough') as string,
-      deliveryFee: record.get('Delivery fee') as number,
-      freeDeliveryMinimum: record.get('Free Delivery Minimum') as number,
-    }));
-  } catch (error) {
-    throw error;
-  }
-}
-
-export async function updateProductStatus(productId: string, isActive: boolean): Promise<Product> {
-  try {
-    if (!base) {
-      throw new Error('Airtable not configured');
-    }
-
-    const record = await base('Products').update(productId, {
-      'Status': isActive ? 'active' : 'inactive',
-    });
-
-    const status = record.get('Status') as string;
-    return {
-      id: record.id,
-      name: record.get('Name') as string,
-      description: record.get('Description') as string,
-      price: record.get('Price') as number,
-      category: record.get('Category') as string[],
-      isActive: status?.toLowerCase() === 'active',
-      imageUrl: record.get('Image URL') as string,
-      stock: record.get('Stock') as number,
-      status: status || 'inactive',
-      weightSize: record.get('Weight/Size') as string,
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-
-export async function updateProduct(productId: string, data: Partial<Product>): Promise<Product> {
-  try {
-    if (!base) {
-      throw new Error('Airtable not configured');
-    }
-
-    const record = await base('Products').update(productId, {
-      'Name': data.name,
-      'Description': data.description,
-      'Price': data.price,
-      'Category': data.category,
-      'Status': data.status,
-      'Image URL': data.imageUrl,
-      'Stock': data.stock,
-      'Weight/Size': data.weightSize,
-    });
-
-    const status = record.get('Status') as string;
-    return {
-      id: record.id,
-      name: record.get('Name') as string,
-      description: record.get('Description') as string,
-      price: record.get('Price') as number,
-      category: record.get('Category') as string[],
-      isActive: status?.toLowerCase() === 'active',
-      imageUrl: record.get('Image URL') as string,
-      stock: record.get('Stock') as number,
-      status: status || 'inactive',
-      weightSize: record.get('Weight/Size') as string,
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-
-export async function createProduct(data: Partial<Product>): Promise<Product> {
-  try {
-    if (!base) {
-      throw new Error('Airtable not configured');
-    }
-
-    const record = await base('Products').create({
-      'Name': data.name,
-      'Description': data.description,
-      'Price': data.price,
-      'Category': data.category,
-      'Status': data.status || 'active',
-      'Image URL': data.imageUrl,
-      'Stock': data.stock,
-      'Weight/Size': data.weightSize,
-    });
-
-    const status = record.get('Status') as string;
-    return {
-      id: record.id,
-      name: record.get('Name') as string,
-      description: record.get('Description') as string,
-      price: record.get('Price') as number,
-      category: record.get('Category') as string[],
-      isActive: status?.toLowerCase() === 'active',
-      imageUrl: record.get('Image URL') as string,
-      stock: record.get('Stock') as number,
-      status: status || 'inactive',
-      weightSize: record.get('Weight/Size') as string,
-    };
-  } catch (error) {
-    throw error;
-  }
-}
-
-// Create a new local product
-export async function createLocalProduct(data: Partial<Product>): Promise<Product> {
-  await ensureDirectories()
-  await initProductsFile()
-
-  const products = await getLocalProducts()
-  
-  const newProduct: Product = {
-    id: `local_${Date.now()}`,
-    name: data.name || '',
-    description: data.description || '',
-    price: data.price || 0,
-    category: data.category || [],
-    isActive: data.isActive ?? true,
-    imageUrl: data.imageUrl || '',
-    stock: data.stock || 0,
-    status: data.status || 'active',
-    weightSize: data.weightSize || ''
-  }
-
-  await fs.writeFile(
-    PRODUCTS_FILE,
-    JSON.stringify({ products: [...products, newProduct] }, null, 2)
-  )
-
-  return newProduct
-}
-
-// Update a local product
-export async function updateLocalProduct(product: Partial<Product> & { id: string }): Promise<Product> {
-  const products = await getLocalProducts()
-  const index = products.findIndex(p => p.id === product.id)
-
-  if (index === -1) {
-    throw new Error('Product not found')
-  }
-
-  const updatedProduct = {
-    ...products[index],
-    ...product,
-    id: product.id // Ensure ID doesn't change
-  }
-
-  products[index] = updatedProduct
-
-  await fs.writeFile(
-    PRODUCTS_FILE,
-    JSON.stringify({ products }, null, 2)
-  )
-
-  return updatedProduct
-}
-
-// Check if a product is local
-export function isLocalProduct(id: string): boolean {
-  return id.startsWith('local_')
-}
-
-// Save products to file
-export async function saveProductsToFile(products: Product[]): Promise<void> {
-  try {
-    await ensureDirectories()
-    
-    // Get existing local products
-    const existingProducts = await getLocalProducts()
-    const localProducts = existingProducts.filter(p => isLocalProduct(p.id))
-    
-    // Merge Airtable products with local products
-    const mergedProducts = [
-      ...products, // Airtable products
-      ...localProducts // Local products
-    ]
-    
-    await fs.writeFile(
-      PRODUCTS_FILE,
-      JSON.stringify({ products: mergedProducts }, null, 2)
-    )
-  } catch (error) {
-    throw error
-  }
-}
-
-// Get all products (both Airtable and local)
-export async function getAllProducts(): Promise<Product[]> {
-  try {
-    const [airtableProducts, localProducts] = await Promise.all([
-      getProducts(),
-      getLocalProducts()
+    const [airtableCategories, localCategories] = await Promise.all([
+      getCategories(),
+      getLocalCategories()
     ])
 
-    // Filter local products to only include ones with local_ prefix
-    const validLocalProducts = localProducts.filter(p => isLocalProduct(p.id))
+    // Filter local categories to only include ones with local_ prefix
+    const validLocalCategories = localCategories.filter(c => isLocalCategory(c.id))
 
-    return [...airtableProducts, ...validLocalProducts]
+    // Combine and sort by display order
+    const allCategories = [...airtableCategories, ...validLocalCategories]
+    return allCategories.sort((a, b) => (a.displayOrder || 0) - (b.displayOrder || 0))
   } catch (error) {
-    throw error
+    console.error('Error fetching all categories:', error)
+    return getLocalCategories() // Fallback to local categories if Airtable fails
   }
 }
 
@@ -567,50 +433,25 @@ export function isLocalCategory(id: string): boolean {
 
 // Save categories to file
 export async function saveCategoriesToFile(categories: Category[]): Promise<void> {
-  try {
-    await ensureDirectories()
-    
-    // Get existing local categories
-    const existingCategories = await getLocalCategories()
-    const localCategories = existingCategories.filter(c => isLocalCategory(c.id))
-    
-    // Merge Airtable categories with local categories
-    const mergedCategories = [
-      ...categories, // Airtable categories
-      ...localCategories // Local categories
-    ]
-    
-    await fs.writeFile(
-      CATEGORIES_FILE,
-      JSON.stringify({ categories: mergedCategories }, null, 2)
-    )
-  } catch (error) {
-    throw error
-  }
+  await ensureDirectories()
+  await fs.writeFile(CATEGORIES_FILE, JSON.stringify({ categories }, null, 2))
 }
 
 // Create a new local category
 export async function createLocalCategory(data: Partial<Category>): Promise<Category> {
-  await ensureDirectories()
-  await initCategoriesFile()
-
   const categories = await getLocalCategories()
   
   const newCategory: Category = {
-    id: `local_${Date.now()}`,
+    id: `local_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`,
     name: data.name || '',
     description: data.description || '',
     displayOrder: data.displayOrder || categories.length + 1,
     isActive: data.isActive ?? true,
-    variations: data.variations || [],
-    products: data.products || []
+    products: data.products || [],
+    slug: data.slug || ''
   }
 
-  await fs.writeFile(
-    CATEGORIES_FILE,
-    JSON.stringify({ categories: [...categories, newCategory] }, null, 2)
-  )
-
+  await saveCategoriesToFile([...categories, newCategory])
   return newCategory
 }
 
@@ -630,44 +471,21 @@ export async function updateLocalCategory(id: string, data: Partial<Category>): 
   }
 
   categories[index] = updatedCategory
-
-  await fs.writeFile(
-    CATEGORIES_FILE,
-    JSON.stringify({ categories }, null, 2)
-  )
-
+  await saveCategoriesToFile(categories)
   return updatedCategory
-}
-
-// Get all categories (both Airtable and local)
-export async function getAllCategories(): Promise<Category[]> {
-  try {
-    // Get categories from local file
-    const localCategories = await getLocalCategories();
-    
-    // Sort by display order
-    return localCategories.sort((a, b) => 
-      (a.displayOrder || 0) - (b.displayOrder || 0)
-    );
-  } catch (error) {
-    throw error;
-  }
 }
 
 // Update category in Airtable
 export async function updateCategory(categoryId: string, data: Partial<Category>): Promise<Category> {
   try {
-    if (!base) {
-      throw new Error('Airtable not configured');
-    }
-
+    console.log(`Updating category ${categoryId}...`)
     const record = await base('Category').update(categoryId, {
       'Name': data.name,
       'Description': data.description,
       'Display Order': data.displayOrder,
       'Is Active': data.isActive,
-      'Variations': data.variations,
-      'Products': data.products
+      'Products': data.products,
+      'Slug': data.slug
     })
 
     return {
@@ -676,40 +494,38 @@ export async function updateCategory(categoryId: string, data: Partial<Category>
       description: record.get('Description') as string,
       displayOrder: record.get('Display Order') as number,
       isActive: record.get('Is Active') as boolean,
-      variations: record.get('Variations') as string[],
-      products: record.get('Products') as string[]
+      products: record.get('Products') as string[],
+      slug: record.get('Slug') as string,
     }
   } catch (error) {
+    console.error('Error updating category:', error)
     throw error
   }
 }
 
-// Create category in Airtable
-export async function createCategory(data: Partial<Category>): Promise<Category> {
+// Get all products from Airtable
+export async function getProducts(): Promise<Product[]> {
   try {
-    if (!base) {
-      throw new Error('Airtable not configured');
-    }
+    console.log('Fetching products from Airtable...')
+    const records = await base('Products').select({
+      sort: [{ field: 'Name', direction: 'asc' }]
+    }).all()
 
-    const record = await base('Category').create({
-      'Name': data.name,
-      'Description': data.description,
-      'Display Order': data.displayOrder,
-      'Is Active': data.isActive ?? true,
-      'Variations': data.variations || [],
-      'Products': data.products || []
-    })
-
-    return {
+    return records.map(record => ({
       id: record.id,
       name: record.get('Name') as string,
       description: record.get('Description') as string,
-      displayOrder: record.get('Display Order') as number,
+      price: record.get('Price') as number,
+      category: record.get('Category') as string[],
+      categoryNames: record.get('Category Names') as string[],
       isActive: record.get('Is Active') as boolean,
-      variations: record.get('Variations') as string[],
-      products: record.get('Products') as string[]
-    }
+      imageUrl: record.get('Image URL') as string,
+      stock: record.get('Stock') as number,
+      status: record.get('Status') as string,
+      weightSize: record.get('Weight/Size') as string | number
+    }))
   } catch (error) {
+    console.error('Error fetching products:', error)
     throw error
   }
 }

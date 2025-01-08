@@ -154,9 +154,14 @@ Check Codebase before creating or deleting anything.
 15. GET READY FOR DEPLOYMENT
 -fix cart icon functionality and ensure it is working and smooth 'pending'
 -send admin email to admin when order is placed 'completed'  
-   -clean up code for deployment 'pending'  
+   -clean up code for deployment 'completed'
    -optimize for mobile 'pending'
-DEPLOY TO NETLIFY vercel
+DEPLOY TO NETLIFY vercel 'completed'
+
+      POST DEPLOYMENT
+
+- ensure delivery settings are being fetched from airtable 'pending'
+-ensure side panels are implemented in mobile view 'pending'
 
 
 

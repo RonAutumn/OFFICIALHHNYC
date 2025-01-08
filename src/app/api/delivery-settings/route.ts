@@ -9,11 +9,16 @@ export async function GET() {
         settings: [
           {
             borough: 'Manhattan',
-            deliveryFee: 10,
-            freeDeliveryMinimum: 100
+            deliveryFee: 25,
+            freeDeliveryMinimum: 200
           },
           {
             borough: 'Brooklyn',
+            deliveryFee: 15,
+            freeDeliveryMinimum: 150
+          },
+          {
+            borough: 'Queens',
             deliveryFee: 15,
             freeDeliveryMinimum: 150
           }
@@ -21,11 +26,14 @@ export async function GET() {
       });
     }
 
-    const records = await base('Delivery Settings').select().all();
+    const records = await base('Settings').select({
+      view: 'Grid view'
+    }).all();
+
     const settings = records.map(record => ({
-      borough: record.get('Borough'),
-      deliveryFee: record.get('Delivery Fee'),
-      freeDeliveryMinimum: record.get('Free Delivery Minimum')
+      borough: record.get('Borough') as string,
+      deliveryFee: record.get('Delivery fee') as number,
+      freeDeliveryMinimum: record.get('Free Delivery Minimum') as number,
     }));
 
     return NextResponse.json({ settings });
