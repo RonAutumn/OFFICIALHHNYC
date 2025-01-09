@@ -26,7 +26,6 @@ interface OrderDetailsProps {
   order: {
     id: number
     method: string
-    email: string
     total: number
     status?: OrderStatus
     items: Array<{
@@ -41,7 +40,6 @@ interface OrderDetailsProps {
     }>
     shippingForm?: {
       name: string
-      email: string
       street: string
       city: string
       state: string
@@ -163,10 +161,6 @@ export function OrderDetails({ order, open, onOpenChange, onStatusUpdate }: Orde
           <Card className="p-4">
             <h3 className="font-semibold mb-2">Customer Information</h3>
             <div className="grid gap-2 text-sm">
-              <div>
-                <p className="text-muted-foreground">Email</p>
-                <p>{order.email}</p>
-              </div>
               {order.shippingForm && (
                 <>
                   <Separator className="my-2" />

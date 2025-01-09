@@ -1,10 +1,6 @@
 import { create } from 'zustand';
-import { Product } from '@/lib/airtable';
-
-interface CartItem extends Product {
-  quantity: number;
-  selectedVariation?: string;
-}
+import { Product } from '@/types/product';
+import { CartItem } from '@/types/cart';
 
 interface CartStore {
   items: CartItem[];
@@ -12,9 +8,12 @@ interface CartStore {
   removeItem: (productId: string, selectedVariation?: string) => void;
   updateQuantity: (productId: string, quantity: number, selectedVariation?: string) => void;
   clearCart: () => void;
+  getFormattedItems: () => string;
+  getSubtotal: () => number;
+  getTotal: () => number;
 }
 
-export const useCart = create<CartStore>((set) => ({
+export const useCart = create<CartStore>((set, get) => ({
   items: [],
   addItem: (product, selectedVariation) => {
     set((state) => {
@@ -37,7 +36,7 @@ export const useCart = create<CartStore>((set) => ({
             ...product,
             quantity: 1,
             selectedVariation,
-          },
+          } as CartItem,
         ],
       };
     });
@@ -51,13 +50,24 @@ export const useCart = create<CartStore>((set) => ({
   },
   updateQuantity: (productId, quantity, selectedVariation) => {
     set((state) => ({
-      items: state.items.map(item => {
-        if (item.id === productId && item.selectedVariation === selectedVariation) {
-          return { ...item, quantity };
-        }
-        return item;
-      }),
+      items: state.items.map(item => 
+        item.id === productId && item.selectedVariation === selectedVariation
+          ? { ...item, quantity }
+          : item
+      ),
     }));
   },
   clearCart: () => set({ items: [] }),
+  getFormattedItems: () => {
+    const { items } = get();
+    return items.map(item => `${item.name} (${item.quantity})`).join(', ');
+  },
+  getSubtotal: () => {
+    const { items } = get();
+    return items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
+  },
+  getTotal: () => {
+    const { items } = get();
+    return items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
+  },
 })); 

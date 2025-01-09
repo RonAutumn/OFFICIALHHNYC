@@ -1,25 +1,33 @@
 const base = require('../config/airtable');
 
-const TABLE_NAME = 'Order Details';
+const ORDERS_TABLE = 'Order Details';
+const SETTINGS_TABLE = 'Settings';
 
 const Shipping = {
+  // Get all shipping orders
   getAll: async () => {
     try {
-      const records = await base(TABLE_NAME).select().all();
+      const records = await base(ORDERS_TABLE)
+        .select({
+          filterByFormula: "{Type} = 'shipping'"
+        })
+        .all();
+      
       return records.map(record => ({
         id: record.id,
-        orderId: record.fields.OrderID,
-        customerName: record.fields.CustomerName,
+        orderId: record.fields['Order ID'],
+        customerName: record.fields['Customer Name'],
         email: record.fields.Email,
         phone: record.fields.Phone,
-        address: record.fields.Address,
-        city: record.fields.City,
-        state: record.fields.State,
-        zipCode: record.fields.ZipCode,
-        shippingMethod: record.fields['Shipping Method'],
+        shippingAddress: record.fields.shippingAddress,
+        shippingCity: record.fields.shippingCity,
+        shippingState: record.fields.shippingState,
+        shippingZipCode: record.fields.shippingZipCode,
         shippingFee: parseFloat(record.fields['Shipping Fee']) || 0,
         status: record.fields.Status,
-        notes: record.fields.Notes
+        items: record.fields.Items,
+        total: parseFloat(record.fields.Total) || 0,
+        timestamp: record.fields.Timestamp
       }));
     } catch (error) {
       console.error('Error in getAll shipping:', error);
@@ -27,23 +35,25 @@ const Shipping = {
     }
   },
 
+  // Get shipping order by ID
   getById: async (id) => {
     try {
-      const record = await base(TABLE_NAME).find(id);
+      const record = await base(ORDERS_TABLE).find(id);
       return {
         id: record.id,
-        orderId: record.fields.OrderID,
-        customerName: record.fields.CustomerName,
+        orderId: record.fields['Order ID'],
+        customerName: record.fields['Customer Name'],
         email: record.fields.Email,
         phone: record.fields.Phone,
-        address: record.fields.Address,
-        city: record.fields.City,
-        state: record.fields.State,
-        zipCode: record.fields.ZipCode,
-        shippingMethod: record.fields['Shipping Method'],
+        shippingAddress: record.fields.shippingAddress,
+        shippingCity: record.fields.shippingCity,
+        shippingState: record.fields.shippingState,
+        shippingZipCode: record.fields.shippingZipCode,
         shippingFee: parseFloat(record.fields['Shipping Fee']) || 0,
         status: record.fields.Status,
-        notes: record.fields.Notes
+        items: record.fields.Items,
+        total: parseFloat(record.fields.Total) || 0,
+        timestamp: record.fields.Timestamp
       };
     } catch (error) {
       console.error('Error in getById shipping:', error);
@@ -51,36 +61,41 @@ const Shipping = {
     }
   },
 
-  create: async (shippingData) => {
+  // Create new shipping order
+  create: async (orderData) => {
     try {
-      const record = await base(TABLE_NAME).create([
+      const record = await base(ORDERS_TABLE).create([
         {
           fields: {
-            OrderID: shippingData.orderId,
-            CustomerName: shippingData.customerName,
-            Email: shippingData.email,
-            Phone: shippingData.phone,
-            Address: shippingData.address,
-            City: shippingData.city,
-            State: shippingData.state,
-            ZipCode: shippingData.zipCode,
-            'Shipping Method': shippingData.shippingMethod,
-            'Shipping Fee': shippingData.shippingFee,
-            Status: 'Pending',
-            Notes: shippingData.notes || ''
+            'Order ID': orderData.orderId,
+            'Customer Name': orderData.customerName,
+            Email: orderData.email,
+            Phone: orderData.phone,
+            Items: orderData.items,
+            'Payment Method': orderData.paymentMethod,
+            Timestamp: orderData.timestamp || new Date().toISOString(),
+            Total: orderData.total,
+            Type: 'shipping',
+            shippingAddress: orderData.shippingAddress,
+            shippingCity: orderData.shippingCity,
+            shippingState: orderData.shippingState,
+            shippingZipCode: orderData.shippingZipCode,
+            'Shipping Fee': orderData.shippingFee,
+            Status: orderData.status || 'pending'
           }
         }
       ]);
       return record[0];
     } catch (error) {
-      console.error('Error creating shipping:', error);
+      console.error('Error creating shipping order:', error);
       throw error;
     }
   },
 
+  // Update shipping order status
   updateStatus: async (id, status) => {
     try {
-      const record = await base(TABLE_NAME).update([
+      const record = await base(ORDERS_TABLE).update([
         {
           id: id,
           fields: {
@@ -91,6 +106,44 @@ const Shipping = {
       return record[0];
     } catch (error) {
       console.error('Error updating shipping status:', error);
+      throw error;
+    }
+  },
+
+  // Get shipping settings
+  getSettings: async () => {
+    try {
+      const records = await base(SETTINGS_TABLE)
+        .select({
+          filterByFormula: "{borough} = 'Shipping Fee'"
+        })
+        .all();
+
+      if (!records || records.length === 0) {
+        return {
+          shippingFee: 25,
+          freeShippingMinimum: 150
+        };
+      }
+
+      const settings = records[0].fields;
+      return {
+        shippingFee: parseFloat(settings.deliveryFee) || 25,
+        freeShippingMinimum: parseFloat(settings.freeDeliveryMinimum) || 150
+      };
+    } catch (error) {
+      console.error('Error getting shipping settings:', error);
+      throw error;
+    }
+  },
+
+  // Calculate shipping fee
+  calculateFee: async (subtotal) => {
+    try {
+      const settings = await Shipping.getSettings();
+      return subtotal >= settings.freeShippingMinimum ? 0 : settings.shippingFee;
+    } catch (error) {
+      console.error('Error calculating shipping fee:', error);
       throw error;
     }
   }

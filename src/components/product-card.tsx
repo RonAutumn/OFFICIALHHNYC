@@ -44,79 +44,51 @@ export function ProductCard({ product }: ProductCardProps) {
       <CardHeader className="flex-none p-2 sm:p-3">
         {product.imageUrl && (
           <div className="relative w-full aspect-square rounded-md overflow-hidden bg-gray-100">
-            <Image
-              src={product.imageUrl}
-              alt={product.name}
-              fill
-              className="object-cover"
-              sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, 25vw"
-              priority={false}
-              loading="lazy"
-            />
+            {product.imageUrl.startsWith('data:image') ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={product.imageUrl}
+                alt={product.name}
+                className="object-cover w-full h-full"
+              />
+            ) : (
+              <Image
+                src={product.imageUrl}
+                alt={product.name}
+                fill
+                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              />
+            )}
           </div>
         )}
-        <CardTitle className={cn(
-          "mt-2 line-clamp-1",
-          "text-xs sm:text-sm md:text-base",
-          "font-medium sm:font-semibold"
-        )}>
-          {product.name}
-        </CardTitle>
+        <CardTitle className="text-lg font-semibold mt-2">{product.name}</CardTitle>
       </CardHeader>
-      <CardContent className="flex-grow p-2 sm:p-3">
-        {product.description && (
-          <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2">{product.description}</p>
-        )}
+      <CardContent className="flex-grow">
+        <p className="text-sm text-muted-foreground line-clamp-2">{product.description}</p>
+        <p className="mt-2 text-lg font-semibold">${product.price}</p>
       </CardContent>
-      <CardFooter className="flex-none flex flex-col gap-1.5 sm:gap-2 p-2 sm:p-3">
-        <div className="flex items-center justify-between w-full">
-          <span className={cn(
-            "font-semibold",
-            "text-xs sm:text-sm md:text-base"
-          )}>
-            ${(validVariations.find(v => v.name === selectedVariation)?.price || product.price).toFixed(2)}
-          </span>
-        </div>
+      <CardFooter className="flex-none p-2 sm:p-3 space-y-2">
         {validVariations.length > 0 && (
-          <Select
-            value={selectedVariation}
-            onValueChange={setSelectedVariation}
-            defaultValue={validVariations[0]?.name}
-          >
-            <SelectTrigger className={cn(
-              "w-full text-xs sm:text-sm",
-              "h-7 sm:h-8 md:h-9"
-            )}>
+          <Select value={selectedVariation} onValueChange={setSelectedVariation}>
+            <SelectTrigger className="w-full">
               <SelectValue placeholder="Select variation" />
             </SelectTrigger>
             <SelectContent>
               {validVariations.map((variation: ProductVariation) => (
-                <SelectItem 
-                  key={variation.name || variation.id} 
-                  value={variation.name || `variation-${variation.id}`}
-                  className="text-xs sm:text-sm"
-                >
-                  {variation.name} - ${variation.price?.toFixed(2) ?? '0.00'}
+                <SelectItem key={variation.name} value={variation.name}>
+                  {variation.name}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         )}
         <Button 
-          className={cn(
-            "w-full text-xs sm:text-sm",
-            "h-7 sm:h-8 md:h-9"
-          )}
-          variant="outline" 
-          disabled={product.stock <= 0 || (validVariations.length > 0 && !selectedVariation)}
-          onClick={handleAddToCart}
+          onClick={handleAddToCart} 
+          className="w-full"
+          disabled={validVariations.length > 0 && !selectedVariation}
         >
-          {product.stock <= 0 
-            ? 'Out of Stock' 
-            : validVariations.length > 0 && !selectedVariation
-              ? 'Select Variation'
-              : 'Add to Cart'
-          }
+          Add to Cart
         </Button>
       </CardFooter>
     </Card>

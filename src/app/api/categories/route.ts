@@ -1,19 +1,12 @@
 import { NextResponse } from 'next/server';
-import { 
-  getAllCategories, 
-  updateCategory, 
-  createCategory, 
-  isLocalCategory, 
-  updateLocalCategory, 
-  createLocalCategory 
-} from '@/lib/airtable';
+import { getCategories, createCategory, updateCategory } from '@/lib/airtable';
 
 export async function GET() {
   try {
-    const categories = await getAllCategories();
-    return NextResponse.json(categories);
+    const categories = await getCategories();
+    return NextResponse.json({ categories });
   } catch (error) {
-    console.error('Error in categories API route:', error);
+    console.error('Error fetching categories:', error);
     return NextResponse.json(
       { error: 'Failed to fetch categories' },
       { status: 500 }
@@ -39,7 +32,7 @@ export async function PATCH(request: Request) {
   try {
     const data = await request.json();
     const { id, ...updateData } = data;
-
+    
     if (!id) {
       return NextResponse.json(
         { error: 'Category ID is required' },
@@ -47,10 +40,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const category = isLocalCategory(id) 
-      ? await updateLocalCategory(id, updateData)
-      : await updateCategory(id, updateData);
-
+    const category = await updateCategory(id, updateData);
     return NextResponse.json(category);
   } catch (error) {
     console.error('Error updating category:', error);

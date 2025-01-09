@@ -10,9 +10,17 @@ export default function AdminLogin() {
   const router = useRouter()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!password.trim()) {
+      setError('Password is required')
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
     
     try {
       const response = await fetch('/api/admin/login', {
@@ -27,10 +35,15 @@ export default function AdminLogin() {
         router.push('/admin')
         router.refresh()
       } else {
-        setError('Invalid password')
+        const data = await response.json()
+        setError(data.error || 'Invalid password')
+        setPassword('')
       }
     } catch (error) {
+      console.error('Login error:', error)
       setError('An error occurred. Please try again.')
+    } finally {
+      setIsLoading(false)
     }
   }
 
@@ -49,11 +62,14 @@ export default function AdminLogin() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={isLoading}
+                autoFocus
+                required
               />
-              {error && <p className="text-sm text-red-500">{error}</p>}
+              {error && <p className="text-sm text-destructive">{error}</p>}
             </div>
-            <Button type="submit" className="w-full">
-              Login
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
         </CardContent>

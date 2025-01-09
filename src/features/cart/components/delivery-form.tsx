@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { useForm } from 'react-hook-form';
-import useCart from '../hooks/useCart';
+import { useCart } from '@/lib/store/cart';
 import { formatCurrency } from '@/lib/utils';
 
 interface DeliveryFormData {
@@ -26,7 +26,7 @@ export interface DeliveryFormProps {
 export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, onBack, isSubmitting }) => {
   const { register, handleSubmit, formState: { errors } } = useForm<DeliveryFormData>();
   const { toast } = useToast();
-  const { items, getSubtotal, getTotal } = useCart();
+  const { items, getTotal } = useCart();
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

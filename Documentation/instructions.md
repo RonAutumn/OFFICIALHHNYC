@@ -87,81 +87,14 @@ Check Codebase before creating or deleting anything.
 2. clean up back end redundant codes and files. 'completed'
 3. we need to fetch category data from airtable 'completed'
 4. we need to fetch product data from airtable 'completed'
-5. we need to fetch order data from airtable 'completed'
-6. apply categories with shadcn side panel to home page 'completed'
-7. apply products with shadcn card to home page 'in progress'
-   - Install required dependencies (class-variance-authority) 'completed'
-   - Create product card component 'completed'
-   - Implement grid layout for products 'completed'
-   
-8. remove duplicated categories. only display active categories 'completed'
-    -add proper dropdown on products with variations 'pending'
-    -remove number from categoies 'completed'
-    -add cart icon 'completed
-    -ensure add to cart functionality is working 'completed'
-
-9. add checkout page 'completed'
-    -apply calendar to delivery form 'completed'
-    -fetch deliveries from settings table from airtable 'completed'
-     -add shipping form to checkout page 'completed'
-
-10. add order summary to confirmation page 'completed'
-    -ensure orders are being saved in a json file before being sent to airtable and accept orders in any format sent to backend 'completed'
-    -add payment link and email will be sent to customer 'completed'
-    -ensure order details are displayed in confirmation page 'completed'
-    -ensure shipping orders can be placed 'completed'
-    
-11. Create ui for admin page with shadcn theme and side panels 'completed'
-    -import oders from json file into oders tab in admin page 'completed'
-    -fix duplicate in ui 'completed'
-    -Sorting functionality 'pending'
-    -Filtering by date/status 'completed'
-    -Search functionality 'completed'
-    -Detailed order view 'pending'
-    -Export functionality 'pending'
-    -Pagination 'pending'
-    -Order details view 'complete'
-    -Status management 'complete'
-
-12.  -merge store managemnt and products into one tab 'completed'
-    - import products data from airtable into products tab in admin page 'completed'
-    -import categories data from airtable into categories in store tab 'completed'
-    -ensure products active/inactive status is being fetched from airtable and match admin 'completed'
-    front end display both data from json file synced from airtable 'completed'
-    -add product functionality to add/edit/delete/out of stock products 'pending'
-    -implement fetch and sync for products 'completed'
-    -implement fetch and sync for categories 'completed'
-   -add category functionality to add/edit/delete categories 'pending'
-    -add product image functionality to add/edit/delete product images 'pending'
-    -add product variation functionality to add/edit/delete product variations 'completed'
-    -add product variation image functionality to add/edit/delete product variation images 'completed'
-     - add "Specials/deals" product creation feature. can import active products into a special/deals 'completed'
-     -create bundle category 'completed'
-
-     13. ensure products are being fetched from json file instead of airtable 'completed'
-         -ensure images are being displayed in product card 'completed'
-         -DROPDOWN FOR VARIATION SELECTION 'completed'
-         -REMOVCE STATEN ISLAND AND BRONX FROM DELIVERY OPTIONS 'completed'
-         -block out manhttan delivery options. only allow tuesday and fridays
-         -categories tab in frontend is functioal 'completed'  
-         -add bundles category 'completed'
-         -create json file for bundles created in admin page 'completed'
-
-         14. add password protection to frontend 'completed'    
-            -add password protection management to admin page settings tab 'completed'
-
-
-15. GET READY FOR DEPLOYMENT
--fix cart icon functionality and ensure it is working and smooth 'pending'
--send admin email to admin when order is placed 'completed'  
-   -clean up code for deployment 'completed'
-   -optimize for mobile 'pending'
-DEPLOY TO NETLIFY vercel 'completed'
-
-      POST DEPLOYMENT
-
-- ensure delivery settings are being fetched from airtable 'pending'
--ensure side panels are implemented in mobile view 'pending'
+5.ensure current confirmation page is working. 'completed'
+6.ensure current checkout page is working. 'completed'
+7.ensure current cart page is working. 'completed'
+8.ensure current product page is working. 'completed'
+9.ensure current home page is working. 'completed'
+10.ensure current category page is working. 'completed'
+11.ensure current order page is working. 'pending'
+12 ensure shipping form follow same data format as delivery form except delivery date 'pending'
 
 
 

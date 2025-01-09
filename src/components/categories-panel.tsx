@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Category } from '@/lib/airtable';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Tag, LayoutGrid, Menu } from 'lucide-react';
+import { Tag, LayoutGrid } from 'lucide-react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from '@/lib/utils';
 
-async function fetchCategories(): Promise<Category[]> {
+async function fetchCategories(): Promise<(Category & { productCount: number })[]> {
   const response = await fetch('/api/categories');
   if (!response.ok) {
     throw new Error('Failed to fetch categories');
@@ -25,37 +25,19 @@ async function fetchCategories(): Promise<Category[]> {
   return response.json();
 }
 
-function deduplicateCategories(categories: Category[]): Category[] {
-  const categoryMap = new Map<string, Category>();
-  
-  categories.forEach(category => {
-    if (category.isActive) {
-      const existing = categoryMap.get(category.name);
-      if (existing) {
-        // Combine products arrays if they exist
-        existing.products = [...(existing.products || []), ...(category.products || [])];
-      } else {
-        categoryMap.set(category.name, { ...category });
-      }
-    }
-  });
-
-  return Array.from(categoryMap.values()).sort((a, b) => 
-    (a.displayOrder || 0) - (b.displayOrder || 0)
-  );
-}
-
 function CategoryList({ 
-  categories, 
+  categories = [], 
   selectedCategory, 
   onCategoryClick,
   className 
 }: { 
-  categories: Category[], 
+  categories?: (Category & { productCount: number })[], 
   selectedCategory: string | null,
   onCategoryClick: (categoryId: string | null) => void,
   className?: string
 }) {
+  if (!categories || !Array.isArray(categories)) return null;
+
   return (
     <div className={cn("space-y-2", className)}>
       <div
@@ -82,8 +64,11 @@ function CategoryList({
         >
           <Tag className="h-4 w-4" />
           <span>{category.name}</span>
+          <Badge variant="outline" className="ml-auto">
+            {category.productCount}
+          </Badge>
           {selectedCategory === category.id && (
-            <Badge variant="secondary" className="ml-auto">
+            <Badge variant="secondary">
               Selected
             </Badge>
           )}
@@ -110,7 +95,7 @@ export function CategoriesPanel() {
     } else {
       params.delete('category');
     }
-    router.push(`/store?${params.toString()}`);
+    router.push(`/?${params.toString()}`);
   };
 
   if (error) {
@@ -139,8 +124,6 @@ export function CategoriesPanel() {
     );
   }
 
-  const uniqueCategories = categories ? deduplicateCategories(categories) : [];
-
   return (
     <>
       {/* Mobile Categories Sheet */}
@@ -160,7 +143,7 @@ export function CategoriesPanel() {
             </SheetHeader>
             <div className="mt-4">
               <CategoryList 
-                categories={uniqueCategories} 
+                categories={categories || []} 
                 selectedCategory={selectedCategory}
                 onCategoryClick={handleCategoryClick}
               />
@@ -179,7 +162,7 @@ export function CategoriesPanel() {
         </CardHeader>
         <CardContent>
           <CategoryList 
-            categories={uniqueCategories} 
+            categories={categories || []} 
             selectedCategory={selectedCategory}
             onCategoryClick={handleCategoryClick}
           />

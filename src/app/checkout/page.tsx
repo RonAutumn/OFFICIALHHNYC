@@ -1,6 +1,7 @@
 'use client';
 
 import { useCart } from '@/lib/store/cart';
+import type { CartItem } from '@/types/cart';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { DeliverySetting } from '@/lib/airtable';
+import { useShipping, US_STATES } from '@/features/cart/hooks/useShipping';
 
 type DeliveryMethod = 'delivery' | 'shipping';
 
@@ -29,7 +31,7 @@ interface CheckoutForm {
   zipCode: string;
   borough: string;
   instructions?: string;
-  deliveryDate?: Date;
+  deliveryDate?: Date | undefined;
   // Shipping fields (US only)
   shippingAddress: string;
   shippingCity: string;
@@ -37,7 +39,22 @@ interface CheckoutForm {
   shippingZipCode: string;
 }
 
-const SHIPPING_FEE = 15; // Flat rate shipping fee
+interface OrderData {
+  Status: string;
+  'Customer Name': string;
+  Email: string;
+  Phone: string;
+  Items: string[];
+  'Payment Method': string;
+  Timestamp: string;
+  Total: number;
+  Type: DeliveryMethod;
+  address: string;
+  Borough?: string;
+  'Delivery Fee'?: number;
+  'Delivery Date'?: string;
+  'Shipping Fee'?: number;
+}
 
 export default function CheckoutPage() {
   const { items, clearCart } = useCart();
@@ -61,14 +78,15 @@ export default function CheckoutPage() {
   const [deliverySettings, setDeliverySettings] = useState<DeliverySetting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { shippingFee, calculateShippingFee } = useShipping();
 
   useEffect(() => {
     const fetchDeliverySettings = async () => {
       try {
         const response = await fetch('/api/delivery-settings');
         if (!response.ok) throw new Error('Failed to fetch delivery settings');
-        const settings = await response.json();
-        setDeliverySettings(settings);
+        const data = await response.json();
+        setDeliverySettings(data.settings);
       } catch (error) {
         console.error('Error fetching delivery settings:', error);
         toast({
@@ -99,10 +117,10 @@ export default function CheckoutPage() {
   // Set minimum delivery date based on current time
   const minDeliveryDate = isBeforeCutoff ? today : tomorrow;
 
-  const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
+  const subtotal = items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
   
   // Calculate delivery/shipping fee based on method
-  const deliverySetting = deliverySettings.find(
+  const deliverySetting = (deliverySettings || []).find(
     setting => setting.borough.toLowerCase() === formData.borough.toLowerCase()
   );
   
@@ -112,13 +130,16 @@ export default function CheckoutPage() {
           ? 0
           : deliverySetting.deliveryFee
         : 0)
-    : SHIPPING_FEE;
+    : shippingFee;
 
   const total = subtotal + fee;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement> | { target: { name: string; value: string } }) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData(prev => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleBoroughSelect = (value: string) => {
@@ -130,21 +151,43 @@ export default function CheckoutPage() {
   };
 
   const isDateDisabled = (date: Date) => {
-    // If it's the same day, only allow if it's before 6 PM
-    if (date.toDateString() === today.toDateString()) {
-      return !isBeforeCutoff;
-    }
-
-    // Base restrictions (after today's date, within 2 weeks, no Sundays)
-    if (date < minDeliveryDate || date > twoWeeksFromNow || date.getDay() === 0) {
+    // Base restrictions for all orders (after today's date, within 2 weeks)
+    if (date < minDeliveryDate || date > twoWeeksFromNow) {
       return true;
     }
 
-    // Manhattan specific restrictions (only Tuesdays and Fridays)
-    if (formData.borough.toLowerCase() === 'manhattan') {
+    // For delivery orders
+    if (deliveryMethod === 'delivery') {
+      // No deliveries on Sundays
+      if (date.getDay() === 0) {
+        return true;
+      }
+
+      // Manhattan specific restrictions (only Tuesdays and Fridays)
+      if (formData.borough.toLowerCase() === 'manhattan') {
+        const dayOfWeek = date.getDay();
+        // 2 is Tuesday, 5 is Friday
+        return dayOfWeek !== 2 && dayOfWeek !== 5;
+      }
+
+      // If it's the same day, only allow if it's before 6 PM
+      if (date.toDateString() === today.toDateString()) {
+        return !isBeforeCutoff;
+      }
+    }
+
+    // For shipping orders
+    if (deliveryMethod === 'shipping') {
+      // No shipping on weekends (Saturday = 6, Sunday = 0)
       const dayOfWeek = date.getDay();
-      // 2 is Tuesday, 5 is Friday
-      return dayOfWeek !== 2 && dayOfWeek !== 5;
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        return true;
+      }
+
+      // If it's the same day, only allow if it's before 2 PM for shipping
+      if (date.toDateString() === today.toDateString()) {
+        return today.getHours() >= 14; // 14 is 2 PM
+      }
     }
 
     return false;
@@ -154,55 +197,37 @@ export default function CheckoutPage() {
   const validateForm = () => {
     if (!formData.name || !formData.phone || !formData.email) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all contact information.",
-        variant: "destructive",
+        title: 'Missing Information',
+        description: 'Please fill in all required fields.',
+        variant: 'destructive',
       });
       return false;
     }
 
     if (deliveryMethod === 'delivery') {
-      if (!formData.borough || !formData.address || !formData.zipCode) {
+      if (!formData.address || !formData.zipCode || !formData.borough || !formData.deliveryDate) {
         toast({
-          title: "Missing Delivery Information",
-          description: "Please fill in all delivery address fields.",
-          variant: "destructive",
-        });
-        return false;
-      }
-      if (!formData.deliveryDate) {
-        toast({
-          title: "Missing Delivery Date",
-          description: "Please select a delivery date.",
-          variant: "destructive",
+          title: 'Missing Delivery Information',
+          description: 'Please fill in all delivery details including delivery date.',
+          variant: 'destructive',
         });
         return false;
       }
     } else {
-      if (!formData.shippingAddress || !formData.shippingCity || 
-          !formData.shippingState || !formData.shippingZipCode) {
+      if (!formData.shippingAddress || !formData.shippingCity || !formData.shippingState || !formData.shippingZipCode) {
         toast({
-          title: "Missing Shipping Information",
-          description: "Please fill in all shipping address fields.",
-          variant: "destructive",
+          title: 'Missing Shipping Information',
+          description: 'Please fill in all shipping details.',
+          variant: 'destructive',
         });
         return false;
       }
-    }
-
-    if (items.length === 0) {
-      toast({
-        title: "Empty Cart",
-        description: "Your cart is empty. Please add items before checking out.",
-        variant: "destructive",
-      });
-      return false;
     }
 
     return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -210,33 +235,33 @@ export default function CheckoutPage() {
     }
 
     setIsSubmitting(true);
-
+    
     try {
-      const orderData = {
-        items,
-        delivery: {
-          name: formData.name,
-          phone: formData.phone,
-          email: formData.email,
-          method: deliveryMethod,
-          fee,
-          ...(deliveryMethod === 'shipping' ? {
-            address: formData.shippingAddress,
-            city: formData.shippingCity,
-            state: formData.shippingState,
-            zipCode: formData.shippingZipCode,
-            country: 'United States',
-          } : {
-            address: formData.address,
-            zipCode: formData.zipCode,
-            borough: formData.borough,
-            instructions: formData.instructions,
-            deliveryDate: formData.deliveryDate?.toISOString(),
-          }),
-        },
-        status: 'pending',
-        total,
+      const orderData: Record<string, any> = {
+        Status: 'Pending',
+        'Customer Name': formData.name,
+        Email: formData.email,
+        Phone: formData.phone,
+        // Send array of product record IDs
+        Items: items.map(item => item.recordId || item.id),
+        'Payment Method': 'pending',
+        Timestamp: new Date().toISOString(),
+        Total: total,
+        Type: deliveryMethod,
+        // Clear these fields for shipping orders
+        Borough: deliveryMethod === 'shipping' ? '' : formData.borough,
+        'Delivery Fee': deliveryMethod === 'shipping' ? 0 : fee,
+        'Delivery Date': deliveryMethod === 'shipping' ? '' : formData.deliveryDate ? new Date(formData.deliveryDate).toISOString().split('T')[0] : '',
+        // Set address based on delivery method
+        address: deliveryMethod === 'shipping' 
+          ? `${formData.shippingAddress}, ${formData.shippingCity}, ${formData.shippingState} ${formData.shippingZipCode}`
+          : formData.address,
       };
+
+      // Add shipping fee for shipping orders
+      if (deliveryMethod === 'shipping') {
+        orderData['Shipping Fee'] = calculateShippingFee(subtotal);
+      }
 
       const response = await fetch('/api/orders', {
         method: 'POST',
@@ -251,54 +276,22 @@ export default function CheckoutPage() {
         throw new Error(errorData.error || 'Failed to create order');
       }
 
-      const responseData = await response.json();
+      const { orderId } = await response.json();
 
-      // Send email notification using the new API endpoint
-      try {
-        const emailResponse = await fetch('/api/send-order-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId: responseData.orderId,
-            customerName: formData.name,
-            customerEmail: formData.email,
-            customerPhone: formData.phone,
-            items,
-            delivery: {
-              method: deliveryMethod,
-              address: deliveryMethod === 'shipping' ? formData.shippingAddress : formData.address,
-              borough: deliveryMethod === 'delivery' ? formData.borough : undefined,
-              zipCode: deliveryMethod === 'shipping' ? formData.shippingZipCode : formData.zipCode,
-              deliveryDate: formData.deliveryDate?.toISOString(),
-              instructions: formData.instructions,
-            },
-            total,
-            fee,
-          }),
-        });
-
-        if (!emailResponse.ok) {
-          console.error('Failed to send order notification email');
-        }
-      } catch (emailError) {
-        console.error('Failed to send order notification email:', emailError);
-        // Don't block the order completion if email fails
-      }
-
+      // Clear cart and show success message
+      clearCart();
       toast({
         title: 'Order Placed Successfully',
         description: 'We will contact you to confirm payment and delivery details.',
       });
 
-      clearCart();
-      router.push(`/order-confirmation?orderId=${responseData.orderId}`);
+      // Navigate to confirmation page
+      router.push(`/order-confirmation?orderId=${orderId}`);
     } catch (error) {
       console.error('Order submission error:', error);
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to place order. Please try again.',
+        description: error instanceof Error ? error.message : 'Failed to create order',
         variant: 'destructive',
       });
     } finally {
@@ -316,11 +309,11 @@ export default function CheckoutPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             {items.map((item) => (
-              <div key={item.id + item.selectedVariation} className="flex justify-between">
+              <div key={`${item.id}-${item.selectedVariation}`} className="flex justify-between">
                 <span>
                   {item.name} {item.selectedVariation && `(${item.selectedVariation})`} x {item.quantity}
                 </span>
-                <span>${(item.price * item.quantity).toFixed(2)}</span>
+                <span>${((item.price || 0) * item.quantity).toFixed(2)}</span>
               </div>
             ))}
             <div className="border-t pt-4">
@@ -444,21 +437,23 @@ export default function CheckoutPage() {
             <CardContent className="space-y-4">
               {deliveryMethod === 'delivery' ? (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="borough">Borough</Label>
-                    <Select
-                      value={formData.borough}
-                      onValueChange={handleBoroughSelect}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select borough" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Manhattan">Manhattan</SelectItem>
-                        <SelectItem value="Brooklyn">Brooklyn</SelectItem>
-                        <SelectItem value="Queens">Queens</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="borough">Borough</Label>
+                      <Select
+                        value={formData.borough}
+                        onValueChange={(value) => handleBoroughSelect(value)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select borough" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Manhattan">Manhattan</SelectItem>
+                          <SelectItem value="Brooklyn">Brooklyn</SelectItem>
+                          <SelectItem value="Queens">Queens</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                     {formData.borough && deliverySetting && (
                       <div className="text-sm mt-1.5">
                         Free delivery for orders over <span className="font-bold">${deliverySetting.freeDeliveryMinimum.toFixed(2)}</span>

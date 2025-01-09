@@ -1,27 +1,30 @@
 import { NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
-
-const DEFAULT_ADMIN_PASSWORD = 'Richmadeit'
 
 export async function POST(request: Request) {
   try {
     const { password } = await request.json()
-    const adminPassword = process.env.ADMIN_PASSWORD || DEFAULT_ADMIN_PASSWORD
     
-    // Check if password matches the admin password (different from site password)
-    if (password === adminPassword) {
-      const cookieStore = cookies()
-      
-      // Set admin access cookie
-      cookieStore.set('admin_access', 'true', {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        path: '/',
-        maxAge: 60 * 60 * 24 // 24 hours
-      })
-
-      return NextResponse.json({ success: true })
+    if (!process.env.ADMIN_PASSWORD) {
+      console.error('ADMIN_PASSWORD environment variable is not set')
+      return NextResponse.json(
+        { error: 'Server configuration error' },
+        { status: 500 }
+      )
+    }
+    
+    // Check if password matches
+    if (password === process.env.ADMIN_PASSWORD) {
+      // Create response with success message and set cookie
+      return new NextResponse(
+        JSON.stringify({ success: true }),
+        {
+          status: 200,
+          headers: {
+            'Content-Type': 'application/json',
+            'Set-Cookie': `admin_access=true; Path=/; HttpOnly; SameSite=Lax; Max-Age=${60 * 60 * 24}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`
+          }
+        }
+      )
     }
 
     return NextResponse.json(

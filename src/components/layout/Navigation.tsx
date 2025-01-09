@@ -3,8 +3,8 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ShoppingCart, Menu, X, Search } from 'lucide-react';
-import { useCartStore } from '@/features/cart/store/cart';
-import { CartModal } from '@/features/cart/components/CartModal';
+import { useCart } from '@/lib/store/cart';
+import { CartModal } from '@/features/cart/components/cart-modal';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
@@ -37,8 +37,9 @@ export const Navigation: React.FC<NavigationProps> = ({
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const { items, getItemCount, getTotal } = useCartStore();
-  const itemCount = getItemCount();
+  const { items } = useCart();
+  const itemCount = items.reduce((total, item) => total + item.quantity, 0);
+  const total = items.reduce((total, item) => total + (item.price || 0) * item.quantity, 0);
 
   return (
     <nav className="border-b border-border bg-background fixed w-full top-0 z-50">
@@ -170,7 +171,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                       <div className="pt-2 border-t">
                         <div className="flex justify-between font-medium">
                           <span>Total:</span>
-                          <span>${(getTotal() / 100).toFixed(2)}</span>
+                          <span>${(total / 100).toFixed(2)}</span>
                         </div>
                       </div>
                     </div>

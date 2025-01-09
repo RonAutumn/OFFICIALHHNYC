@@ -3,15 +3,15 @@
 import { Button } from "@/components/ui/button";
 import { Minus, Plus, Trash2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
-import { CartItem as CartItemType } from "../store/cart";
-import { useCartStore } from "../store/cart";
+import { CartItem as CartItemType } from "@/types/cart";
+import { useCart } from "@/lib/store/cart";
 
 interface CartItemProps {
   item: CartItemType;
 }
 
 export function CartItem({ item }: CartItemProps) {
-  const { updateQuantity, removeItem } = useCartStore();
+  const { updateQuantity, removeItem } = useCart();
 
   const handleQuantityChange = (newQuantity: number) => {
     if (newQuantity < 1) {

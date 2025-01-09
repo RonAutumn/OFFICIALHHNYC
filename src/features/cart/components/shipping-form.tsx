@@ -2,34 +2,44 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { useToast } from '@/components/ui/use-toast';
 import { useForm } from 'react-hook-form';
-import useCart from '../hooks/useCart';
+import { useCart } from '@/lib/store/cart';
 import { formatCurrency } from '@/lib/utils';
-
-interface ShippingFormData {
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  city: string;
-  state: string;
-  zipCode: string;
-}
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useShipping, US_STATES, type ShippingFormData } from '../hooks/useShipping';
 
 export interface ShippingFormProps {
-  onSubmit: (data: ShippingFormData) => void;
+  onSubmit: (data: any) => void;
   onBack: () => void;
   isSubmitting?: boolean;
 }
 
 export const ShippingForm: React.FC<ShippingFormProps> = ({ onSubmit, onBack, isSubmitting }) => {
-  const { register, handleSubmit, formState: { errors } } = useForm<ShippingFormData>();
-  const { toast } = useToast();
-  const { items, getSubtotal, getTotal, deliveryFee } = useCart();
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<ShippingFormData>();
+  const { items, getSubtotal } = useCart();
+  const selectedState = watch('state');
+  const { isLoading, shippingFee, freeShippingMinimum, calculateShippingFee, formatOrderData } = useShipping();
+
+  const handleStateSelect = (value: string) => {
+    setValue('state', value);
+  };
+
+  const subtotal = getSubtotal();
+  const fee = calculateShippingFee(subtotal);
+  const total = subtotal + fee;
+
+  const onFormSubmit = (data: ShippingFormData) => {
+    // Format items as a string for Airtable
+    const itemsText = items.map(item => 
+      `${item.name}${item.selectedVariation ? ` (${item.selectedVariation})` : ''} x${item.quantity}`
+    ).join(', ');
+
+    const formattedData = formatOrderData(data, itemsText, total);
+    onSubmit(formattedData);
+  };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
       <div className="max-h-[60vh] overflow-y-auto pr-4 -mr-4 space-y-4">
         <div>
           <Label htmlFor="name" className="text-sm text-gray-300">Name</Label>
@@ -96,23 +106,29 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ onSubmit, onBack, is
 
           <div>
             <Label htmlFor="state" className="text-sm text-gray-300">State</Label>
-            <Input
-              id="state"
-              className="bg-gray-800 border-gray-700 text-gray-200"
-              placeholder="Enter your state"
-              {...register("state", { required: "State is required" })}
-            />
+            <Select value={selectedState} onValueChange={handleStateSelect}>
+              <SelectTrigger className="bg-gray-800 border-gray-700 text-gray-200">
+                <SelectValue placeholder="Select state" />
+              </SelectTrigger>
+              <SelectContent>
+                {US_STATES.map(state => (
+                  <SelectItem key={state.value} value={state.value}>
+                    {state.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.state && <span className="text-xs text-red-400">{errors.state.message}</span>}
           </div>
         </div>
 
         <div>
-          <Label htmlFor="zipCode" className="text-sm text-gray-300">Zip Code</Label>
+          <Label htmlFor="zipCode" className="text-sm text-gray-300">ZIP Code</Label>
           <Input
             id="zipCode"
             className="bg-gray-800 border-gray-700 text-gray-200"
             placeholder="Enter your zip code"
-            {...register("zipCode", { required: "Zip code is required" })}
+            {...register("zipCode", { required: "ZIP code is required" })}
           />
           {errors.zipCode && <span className="text-xs text-red-400">{errors.zipCode.message}</span>}
         </div>
@@ -131,22 +147,27 @@ export const ShippingForm: React.FC<ShippingFormProps> = ({ onSubmit, onBack, is
           <Button
             type="submit"
             className="flex-1 bg-red-600 hover:bg-red-700"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isLoading}
           >
             {isSubmitting ? "Placing Order..." : "Place Order"}
           </Button>
         </div>
         <div className="flex justify-between text-sm text-gray-300 mt-4">
           <span>Subtotal</span>
-          <span>{formatCurrency(getSubtotal())}</span>
+          <span>{formatCurrency(subtotal)}</span>
         </div>
         <div className="flex justify-between text-sm text-gray-300">
           <span>Shipping Fee</span>
-          <span>{formatCurrency(deliveryFee)}</span>
+          <span>{formatCurrency(fee)}</span>
         </div>
+        {subtotal < freeShippingMinimum && (
+          <div className="text-sm text-muted-foreground mt-1">
+            Add {formatCurrency(freeShippingMinimum - subtotal)} more for free shipping
+          </div>
+        )}
         <div className="flex justify-between font-medium pt-2">
           <span>Total</span>
-          <span>{formatCurrency(getTotal())}</span>
+          <span>{formatCurrency(total)}</span>
         </div>
       </div>
     </form>

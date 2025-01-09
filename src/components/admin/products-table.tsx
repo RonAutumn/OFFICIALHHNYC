@@ -80,7 +80,7 @@ const productSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string(),
   price: z.number().min(0, "Price must be positive"),
-  stock: z.number().int().min(0, "Stock must be positive"),
+  stock: z.number().int().min(0, "Stock must be positive").optional(),
   category: z.array(z.string()).min(1, "At least one category is required"),
   imageUrl: z.string()
     .refine(url => {
@@ -199,11 +199,12 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
       form.setValue('name', selectedProduct.name)
       form.setValue('description', selectedProduct.description || '')
       form.setValue('price', selectedProduct.price)
-      form.setValue('stock', selectedProduct.stock)
-      form.setValue('category', selectedProduct.category)
+      form.setValue('stock', selectedProduct.stock || 0)
+      form.setValue('category', selectedProduct.category || [])
       form.setValue('imageUrl', selectedProduct.imageUrl || '')
       form.setValue('weightSize', selectedProduct.weightSize || '')
       form.setValue('isActive', selectedProduct.isActive)
+      form.setValue('type', selectedProduct.type || 'other')
     }
   }, [selectedProduct])
 
@@ -343,9 +344,9 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
   const filteredProducts = products.filter(product => {
     const searchLower = searchQuery.toLowerCase()
     const matchesSearch = (
-      product.name.toLowerCase().includes(searchLower) ||
+      product.name.toLowerCase().includes(searchLower) ||        
       product.description?.toLowerCase().includes(searchLower) ||
-      product.category.some(cat => cat.toLowerCase().includes(searchLower))
+      product.category?.some(cat => cat.toLowerCase().includes(searchLower)) || false
     )
     const matchesType = showBundles ? product.type === 'bundle' : product.type !== 'bundle'
     return matchesSearch && matchesType
@@ -353,14 +354,13 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     const modifier = sortDirection === 'asc' ? 1 : -1
-    
     switch (sortField) {
       case 'name':
-        return a.name.localeCompare(b.name) * modifier
+        return (a.name.localeCompare(b.name)) * modifier
       case 'price':
         return (a.price - b.price) * modifier
       case 'stock':
-        return (a.stock - b.stock) * modifier
+        return ((a.stock || 0) - (b.stock || 0)) * modifier
       default:
         return 0
     }
@@ -371,8 +371,8 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
     form.setValue('name', `${product.name} (Special)`)
     form.setValue('description', product.description || '')
     form.setValue('price', product.price)
-    form.setValue('stock', product.stock)
-    form.setValue('category', product.category)
+    form.setValue('stock', product.stock || 0)
+    form.setValue('category', product.category || [])
     form.setValue('imageUrl', product.imageUrl || '')
     form.setValue('weightSize', product.weightSize || '')
     form.setValue('isActive', true)
@@ -391,15 +391,16 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
 
     const newBundleProduct: BundleProduct = {
       id: product.id,
+      productId: product.id,
       quantity: 1,
       product: {
         id: product.id,
         name: product.name,
         price: product.price,
-        category: product.category,
+        category: product.category || [],
         isActive: product.isActive,
-        stock: product.stock,
-        status: product.status
+        stock: product.stock || 0,
+        status: product.status || 'active'
       }
     };
 
@@ -754,10 +755,10 @@ export function ProductsTable({ showBundles }: ProductsTableProps) {
                                                 id: selectedProduct.id,
                                                 name: selectedProduct.name,
                                                 price: selectedProduct.price,
-                                                category: selectedProduct.category,
+                                                category: selectedProduct.category || [],
                                                 isActive: selectedProduct.isActive,
-                                                stock: selectedProduct.stock,
-                                                status: selectedProduct.status
+                                                stock: selectedProduct.stock || 0,
+                                                status: selectedProduct.status || 'active'
                                               });
                                             }
                                           }}

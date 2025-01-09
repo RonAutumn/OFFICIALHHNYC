@@ -598,3 +598,30 @@ src/
    - Consistent styling with main theme
 
 <div style="background: linear-gradient(to right, #4f46e5, #9333ea); height: 4px; margin: 24px 0;"></div>
+
+### Order Submission Updates (2024-01)
+
+#### Added
+- Non-blocking email notifications
+- Improved order confirmation flow
+- Consistent error handling for orders
+
+#### Changed
+- Updated order data format to match Airtable schema
+- Simplified borough handling for delivery orders
+- Improved shipping address validation
+- Enhanced order submission reliability
+
+#### Fixed
+- Order confirmation page navigation
+- Email notification error handling
+- Airtable field format consistency
+- Borough field validation
+
+#### Preserved
+- Delivery fee calculation logic
+- Date selection restrictions
+- Form validation requirements
+- Cart item formatting
+
+<div style="background: linear-gradient(to right, #4f46e5, #9333ea); height: 4px; margin: 24px 0;"></div>

@@ -13,10 +13,10 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ShoppingCart, Minus, Plus, Trash2, Truck, Package } from "lucide-react";
 import { useToast } from '@/components/ui/use-toast';
 import { formatPrice } from '@/lib/utils';
-import { useCartStore } from '../store/cart';
-import { DeliveryForm } from './DeliveryForm';
-import { ShippingForm } from './ShippingForm';
-import OrderConfirmation from './OrderConfirmation';
+import { useCart } from '@/lib/store/cart';
+import { DeliveryForm } from './delivery-form';
+import { ShippingForm } from './shipping-form';
+import OrderConfirmation from './order-confirmation';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface CartModalProps {
@@ -27,7 +27,7 @@ interface CartModalProps {
 type Step = 'cart' | 'method' | 'delivery' | 'shipping';
 
 export function CartModal({ open, onClose }: CartModalProps) {
-  const { items, removeItem, updateQuantity, clearCart, getTotal } = useCartStore();
+  const { items, removeItem, updateQuantity, clearCart, getTotal } = useCart();
   const { toast } = useToast();
   const [step, setStep] = useState<Step>('cart');
   const [isSubmitting, setIsSubmitting] = useState(false);

@@ -1,6 +1,0 @@
-.git
-.next
-node_modules
-.env
-*.log
-project_hashes.csv 
