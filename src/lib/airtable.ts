@@ -107,6 +107,13 @@ export async function createOrder(orderData: any): Promise<Order> {
     // Create order record in Airtable
     const orderRecord = await base('Orders').create(orderFields);
 
+    // Helper function to ensure status is one of the valid values
+    const normalizeStatus = (status: string): Order['status'] => {
+      const validStatuses: Order['status'][] = ['pending', 'confirmed', 'processing', 'out_for_delivery', 'delivered', 'cancelled'];
+      const normalizedStatus = status.toLowerCase() as Order['status'];
+      return validStatuses.includes(normalizedStatus) ? normalizedStatus : 'pending';
+    };
+
     // Return the created order with proper type casting
     return {
       id: orderRecord.id,
@@ -120,7 +127,7 @@ export async function createOrder(orderData: any): Promise<Order> {
       subtotal: Number(orderRecord.fields.Total) - (Number(orderRecord.fields['Shipping Fee']) || Number(orderRecord.fields['Delivery Fee'])),
       deliveryFee: Number(orderRecord.fields['Shipping Fee'] || orderRecord.fields['Delivery Fee'] || 0),
       total: Number(orderRecord.fields.Total || 0),
-      status: String(orderRecord.fields.Status || '').toLowerCase(),
+      status: normalizeStatus(String(orderRecord.fields.Status || 'pending')),
       paymentStatus: 'pending',
       paymentMethod: String(orderRecord.fields['Payment Method'] || ''),
       createdAt: String(orderRecord.fields.Timestamp || ''),
