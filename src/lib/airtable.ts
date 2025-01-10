@@ -107,25 +107,25 @@ export async function createOrder(orderData: any): Promise<Order> {
     // Create order record in Airtable
     const orderRecord = await base('Orders').create(orderFields);
 
-    // Return the created order
+    // Return the created order with proper type casting
     return {
       id: orderRecord.id,
       orderNumber: orderId.toString(),
-      customerName: orderRecord.fields['Customer Name'],
-      customerEmail: orderRecord.fields.Email,
-      customerPhone: orderRecord.fields.Phone,
-      deliveryAddress: orderRecord.fields.address,
-      borough: orderRecord.fields.Borough,
-      items: orderRecord.fields.Items,
-      subtotal: orderRecord.fields.Total - (orderRecord.fields['Shipping Fee'] || orderRecord.fields['Delivery Fee']),
-      deliveryFee: orderRecord.fields['Shipping Fee'] || orderRecord.fields['Delivery Fee'],
-      total: orderRecord.fields.Total,
-      status: orderRecord.fields.Status.toLowerCase(),
+      customerName: String(orderRecord.fields['Customer Name'] || ''),
+      customerEmail: String(orderRecord.fields.Email || ''),
+      customerPhone: String(orderRecord.fields.Phone || ''),
+      deliveryAddress: String(orderRecord.fields.address || ''),
+      borough: String(orderRecord.fields.Borough || ''),
+      items: Array.isArray(orderRecord.fields.Items) ? orderRecord.fields.Items : [],
+      subtotal: Number(orderRecord.fields.Total) - (Number(orderRecord.fields['Shipping Fee']) || Number(orderRecord.fields['Delivery Fee'])),
+      deliveryFee: Number(orderRecord.fields['Shipping Fee'] || orderRecord.fields['Delivery Fee'] || 0),
+      total: Number(orderRecord.fields.Total || 0),
+      status: String(orderRecord.fields.Status || '').toLowerCase(),
       paymentStatus: 'pending',
-      paymentMethod: orderRecord.fields['Payment Method'],
-      createdAt: orderRecord.fields.Timestamp,
-      updatedAt: orderRecord.fields.Timestamp,
-      type: orderRecord.fields.Type
+      paymentMethod: String(orderRecord.fields['Payment Method'] || ''),
+      createdAt: String(orderRecord.fields.Timestamp || ''),
+      updatedAt: String(orderRecord.fields.Timestamp || ''),
+      type: String(orderRecord.fields.Type || '')
     };
   } catch (error) {
     console.error('Error creating order:', error);
