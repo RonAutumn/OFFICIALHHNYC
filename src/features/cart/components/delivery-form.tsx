@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,15 +8,17 @@ import { useToast } from '@/components/ui/use-toast';
 import { useForm } from 'react-hook-form';
 import { useCart } from '@/lib/store/cart';
 import { formatCurrency } from '@/lib/utils';
+import { DatePicker } from '@/components/ui/date-picker';
 
 interface DeliveryFormData {
   name: string;
   email: string;
   phone: string;
   address: string;
-  city: string;
+  borough: string;
   state: string;
   zipCode: string;
+  deliveryDate?: Date;
 }
 
 export interface DeliveryFormProps {
@@ -24,9 +28,10 @@ export interface DeliveryFormProps {
 }
 
 export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, onBack, isSubmitting }) => {
-  const { register, handleSubmit, formState: { errors } } = useForm<DeliveryFormData>();
+  const { register, handleSubmit, formState: { errors }, setValue, watch } = useForm<DeliveryFormData>();
   const { toast } = useToast();
   const { items, getTotal } = useCart();
+  const deliveryDate = watch('deliveryDate');
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -84,14 +89,14 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, onBack, is
 
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label htmlFor="city" className="text-sm text-gray-300">City</Label>
+            <Label htmlFor="borough" className="text-sm text-gray-300">Borough</Label>
             <Input
-              id="city"
+              id="borough"
               className="bg-gray-800 border-gray-700 text-gray-200"
-              placeholder="Enter your city"
-              {...register("city", { required: "City is required" })}
+              placeholder="Enter your borough"
+              {...register("borough", { required: "Borough is required" })}
             />
-            {errors.city && <span className="text-xs text-red-400">{errors.city.message}</span>}
+            {errors.borough && <span className="text-xs text-red-400">{errors.borough.message}</span>}
           </div>
 
           <div>
@@ -115,6 +120,15 @@ export const DeliveryForm: React.FC<DeliveryFormProps> = ({ onSubmit, onBack, is
             {...register("zipCode", { required: "Zip code is required" })}
           />
           {errors.zipCode && <span className="text-xs text-red-400">{errors.zipCode.message}</span>}
+        </div>
+
+        <div>
+          <Label className="text-sm text-gray-300">Delivery Date</Label>
+          <DatePicker
+            date={deliveryDate}
+            setDate={(date) => setValue('deliveryDate', date)}
+          />
+          {errors.deliveryDate && <span className="text-xs text-red-400">{errors.deliveryDate.message}</span>}
         </div>
       </div>
 

@@ -93,12 +93,15 @@ export async function createOrder(orderData: any): Promise<Order> {
       orderFields['Shipping Fee'] = orderData['Shipping Fee'] || 15;
       orderFields['Delivery Fee'] = 0;
       orderFields.Borough = '';
-      orderFields['Delivery Date'] = '';
+      orderFields['Delivery Date'] = null;
     } else {
       orderFields.Borough = orderData.Borough || '';
       orderFields['Delivery Fee'] = orderData['Delivery Fee'] || 0;
       orderFields['Shipping Fee'] = 0;
-      orderFields['Delivery Date'] = orderData['Delivery Date'] || '';
+      // Format the delivery date to match Airtable's expected format (YYYY-MM-DD)
+      orderFields['Delivery Date'] = orderData['Delivery Date'] 
+        ? new Date(orderData['Delivery Date']).toISOString().split('T')[0]
+        : null;
     }
 
     // Create order record in Airtable
@@ -108,21 +111,21 @@ export async function createOrder(orderData: any): Promise<Order> {
     return {
       id: orderRecord.id,
       orderNumber: orderId.toString(),
-      customerName: orderData['Customer Name'],
-      customerEmail: orderData.Email,
-      customerPhone: orderData.Phone,
-      deliveryAddress: orderFields.address,
-      borough: orderFields.Borough,
-      items: orderData.items,
-      subtotal: orderData.Total - (orderFields['Shipping Fee'] || orderFields['Delivery Fee']),
-      deliveryFee: orderFields['Shipping Fee'] || orderFields['Delivery Fee'],
-      total: orderData.Total,
-      status: orderData.Status.toLowerCase(),
+      customerName: orderRecord.fields['Customer Name'],
+      customerEmail: orderRecord.fields.Email,
+      customerPhone: orderRecord.fields.Phone,
+      deliveryAddress: orderRecord.fields.address,
+      borough: orderRecord.fields.Borough,
+      items: orderRecord.fields.Items,
+      subtotal: orderRecord.fields.Total - (orderRecord.fields['Shipping Fee'] || orderRecord.fields['Delivery Fee']),
+      deliveryFee: orderRecord.fields['Shipping Fee'] || orderRecord.fields['Delivery Fee'],
+      total: orderRecord.fields.Total,
+      status: orderRecord.fields.Status.toLowerCase(),
       paymentStatus: 'pending',
-      paymentMethod: orderData['Payment Method'],
-      createdAt: orderData.Timestamp,
-      updatedAt: orderData.Timestamp,
-      type: orderData.Type
+      paymentMethod: orderRecord.fields['Payment Method'],
+      createdAt: orderRecord.fields.Timestamp,
+      updatedAt: orderRecord.fields.Timestamp,
+      type: orderRecord.fields.Type
     };
   } catch (error) {
     console.error('Error creating order:', error);
