@@ -114,6 +114,13 @@ export async function createOrder(orderData: any): Promise<Order> {
       return validStatuses.includes(normalizedStatus) ? normalizedStatus : 'pending';
     };
 
+    // Helper function to ensure payment method is one of the valid values
+    const normalizePaymentMethod = (method: string): Order['paymentMethod'] => {
+      const validMethods: Order['paymentMethod'][] = ['card', 'cash', 'other'];
+      const normalizedMethod = method.toLowerCase() as Order['paymentMethod'];
+      return validMethods.includes(normalizedMethod) ? normalizedMethod : 'other';
+    };
+
     // Return the created order with proper type casting
     return {
       id: orderRecord.id,
@@ -129,7 +136,7 @@ export async function createOrder(orderData: any): Promise<Order> {
       total: Number(orderRecord.fields.Total || 0),
       status: normalizeStatus(String(orderRecord.fields.Status || 'pending')),
       paymentStatus: 'pending',
-      paymentMethod: String(orderRecord.fields['Payment Method'] || ''),
+      paymentMethod: normalizePaymentMethod(String(orderRecord.fields['Payment Method'] || 'other')),
       createdAt: String(orderRecord.fields.Timestamp || ''),
       updatedAt: String(orderRecord.fields.Timestamp || ''),
       type: String(orderRecord.fields.Type || '')
