@@ -1,11 +1,11 @@
 'use client';
 
-import { Header } from '@/components/header';
+import { Navigation } from '@/components/layout/Navigation';
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
-      <Header />
+      <Navigation searchQuery="" onSearchChange={() => {}} />
       {children}
     </>
   );
